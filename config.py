@@ -23,8 +23,30 @@ class Node:
 
     def receive_packet(self, packet, time):
 
+        history_loc = packet.history_loc
+
+        if packet.end_loc == self.id:
+            # Calculate and return a reward
+            return
+
+        temp = 2
+        for loc in history_loc:
+            if(loc == self.id):
+                temp -= 1
+
+        if temp <= 0:
+            # add a penalty for the loop
+            return
+
         # call to the RL
         destination = -1
+        new_time = -1
+
+        packet.sent(destination, new_time)
+        return
+
+
+        
 
         
     
@@ -64,10 +86,7 @@ class Edge:
 
     def send_packet(self, packet_id):
         if(self.capacity >= self.bandwidth):
+            # Add a penalty time and see which is first to get over
             pass
-            # Return an Error
         self.capacity += 1
-
         
-
-    

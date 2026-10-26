@@ -21,9 +21,13 @@ class Packet:
         self.history_loc = [start_loc]
         self.history_time = [start_time]
 
+    def reached(self):
+        self.history_time.append(-1)    # So we can filter out this from packet_queue
+        self.status = Status.END
+
     def sent(self, C, time):
         self.history_loc.append(C)
         self.history_time.append(time)
 
     def __del__(self):
-        self.status = Status.DEAD
+        self.status = Status.DEAD   # This should never be run
