@@ -1,5 +1,5 @@
 import random
-
+import heapq
 
 '''
 Information on Every edge connected to it
@@ -68,6 +68,8 @@ class Edge:
 
         self.capacity = 0
 
+        self.time_heap = []
+
     def update_bandwidth(self, bandwidth = 0):
         if bandwidth == 0:
             self.bandwidth = random.randint(1,10) 
@@ -84,9 +86,14 @@ class Edge:
             self.speed = -1
             self.bandwidth = -1
 
-    def send_packet(self, packet_id):
+    def send_packet(self, packet, time):
+        start_time = time
         if(self.capacity >= self.bandwidth):
-            # Add a penalty time and see which is first to get over
-            pass
+            start_time = self.time_heap[self.capacity - self.bandwidth]
         self.capacity += 1
+
+        start_time -= (-packet.size // self.speed)
+        heapq.heappush(self.time_heap, start_time)
+
+        return start_time
         

@@ -19,12 +19,12 @@ class Network:
         if nodes == 0:
             nodes = random.randint(Node_init, Node_end)
         if edges == 0:
-            edges = random.randint(nodes, nodes*nodes/5)
+            edges = random.randint(nodes, nodes*nodes//5)
 
         self.nodes = nodes
         self.edges = edges
         self.traffic_count = 0
-        self.generate_graph(nodes, edges)
+        self.generate_graph()
         self.packet_count = 0
         self.packet_list = [] 
         self.packet_queue = []
@@ -43,9 +43,9 @@ class Network:
             A = -1
             B = -1
             while A == B:
-                A = random.randint(0,self.nodes) 
-                B = random.randint(0,self.nodes)
-            while A!=B and self.network[A][B] == -1:    # Add a Case for a completely full graph
+                A = random.randint(0,self.nodes - 1) 
+                B = random.randint(0,self.nodes - 1)
+            while self.network[A][B] == -1:    # Add a Case for a completely full graph
                 self.edge_list.append(Edge(A,B))
                 self.network[A][B] = _
                 self.network[B][A] = _
@@ -55,9 +55,9 @@ class Network:
     def add_edge(self, A = -1, B = -1):
         self.nodes += 1
         while A == B:
-            A = random.randint(0, self.nodes)
-            B = random.randint(0, self.nodes)
-        while A!=B and self.network[A][B] == -1:    # Add a Case for a completely full graph
+            A = random.randint(0, self.nodes - 1)
+            B = random.randint(0, self.nodes - 1)
+        while self.network[A][B] == -1:    # Add a Case for a completely full graph
             self.edge_list.append(Edge(A,B))
             self.network[A][B] = self.nodes
             self.network[B][A] = self.nodes
@@ -79,8 +79,8 @@ class Network:
 
     def generate_traffic(self, A = -1, B = -1, packets = -1, size = -1, ttl = 50):
         while A == B:
-            A = random.randint(0, self.nodes)
-            B = random.randint(0, self.nodes)
+            A = random.randint(0, self.nodes - 1)
+            B = random.randint(0, self.nodes - 1)
 
         if packets <= 0:
             packets = random.randint(Packet_init,Packet_end)
@@ -101,8 +101,8 @@ class Network:
 
     def generate_packet(self, A = -1, B = -1, size = -1, ttl = 50):
         while A == B:
-            A = random.randint(0, self.nodes)
-            B = random.randint(0, self.nodes)
+            A = random.randint(0, self.nodes - 1)
+            B = random.randint(0, self.nodes - 1)
 
         if size <= 0 :
             size = random.randint(Size_init, Size_end)
@@ -120,7 +120,7 @@ class Network:
         node_id = self.packet_list[packet[1]].history_loc[-1]
         self.node_list[node_id].receive_packet(self.packet_list[packet[1]], self.time)
 
-        if self.packet_list[packet[1]].history_time != -1:          # Avoiding the ones which are lost or have reached their end
+        if self.packet_list[packet[1]].history_time[-1] != -1:          # Avoiding the ones which are lost or have reached their end
             heapq.heappush(self.packet_queue, (self.packet_list[packet[1]].history_time[-1], self.packet_list[packet[1]].id))
         else:   # if it is part of a generated traffic then continue the traffic 
             A = self.packet_list[packet[1]].start_loc
