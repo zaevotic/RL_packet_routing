@@ -7,19 +7,26 @@ Nodes connected to it
 Information on packet
 
 '''
+
+PROC_TIME = 5
+
 class Node:
     def __init__(self, id):
         self.id = id    # 0 to n
+        self.proc_time = PROC_TIME
         self.neighbours = {}
+
+        self.policy = {}
 
     def add_edge(self, B, edge_id):
         self.neighbours[B] = edge_id
 
-    def receive_packet(self, packet):
+    def receive_packet(self, packet, time):
 
         # call to the RL
+        destination = -1
 
-        pass
+        
     
 '''
 speed : bits/s

@@ -1,3 +1,4 @@
+import logging
 import random
 from config import Node, Edge
 from packet import Packet
@@ -7,10 +8,13 @@ Node_end = 100
 Packet_init = 10
 Packet_end = 1000
 Size_init = 10
-Size_end = 100
+Size_end = 100    
+
+
 
 class Network:
     def __init__(self, nodes = 0, edges = 0):
+        
         if nodes == 0:
             nodes = random.randint(Node_init, Node_end)
         if edges == 0:
@@ -22,6 +26,8 @@ class Network:
         self.generate_graph(nodes, edges)
         self.packet_count = 0
         self.packet_list = [] 
+
+        self.time = 0
 
     def generate_graph(self):
         self.network = [[-1 for _ in range(self.nodes)] for _ in range(self.nodes)]
@@ -87,7 +93,8 @@ class Network:
         if size <= 0 :
             size = random.randint(Size_init, Size_end)
 
-        self.packet_list.append(Packet(self.packet_count, A, B, size, ttl))
+        self.packet_list.append(Packet(self.packet_count, A, B, size, self.time, ttl))
         self.packet_count += 1
-
+        
+    
         

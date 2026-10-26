@@ -9,15 +9,21 @@ class Status(Enum):
     DEAD = 6
 
 class Packet:
-    def __init__(self, id, start, end, size, ttl = 50):
+    def __init__(self, id, start_loc, end_loc, size, start_time, ttl = 50):
         self.id = id
         self.status = Status.NODE
-        self.start = start
-        self.end = end
+        self.start_loc = start_loc
+        self.end_loc = end_loc
         self.ttl = ttl
         self.size = size
         self.time_in_travel = 0
-        self.history = [start]
+        
+        self.history_loc = [start_loc]
+        self.history_time = [start_time]
+
+    def sent(self, C, time):
+        self.history_loc.append(C)
+        self.history_time.append(time)
 
     def __del__(self):
         self.status = Status.DEAD
