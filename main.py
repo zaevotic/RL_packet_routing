@@ -1,7 +1,7 @@
 import random
 from network import Network
 from packet import Status
-import logger
+import logger 
 
 
 def main():
