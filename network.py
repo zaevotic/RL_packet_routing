@@ -19,7 +19,7 @@ class Network:
         if nodes == 0:
             nodes = random.randint(Node_init, Node_end)
         if edges == 0:
-            edges = random.randint(nodes, nodes*nodes//5)
+            edges = random.randint(nodes, nodes*nodes//2)
 
         self.nodes = nodes
         self.edges = edges
@@ -49,8 +49,8 @@ class Network:
                 self.edge_list.append(Edge(A,B))
                 self.network[A][B] = _
                 self.network[B][A] = _
-                self.node_list[A].add_edge(B, _) #break point
-                self.node_list[B].add_edge(A, _) #break point
+                self.node_list[A].add_edge(B, self.edge_list[-1]) #break point
+                self.node_list[B].add_edge(A, self.edge_list[-1]) #break point
 
     def add_edge(self, A = -1, B = -1):
         self.nodes += 1
@@ -61,8 +61,8 @@ class Network:
             self.edge_list.append(Edge(A,B))
             self.network[A][B] = self.nodes
             self.network[B][A] = self.nodes
-            self.node_list[A].add_edge(B, self.nodes) #break point
-            self.node_list[B].add_edge(A, self.nodes) #break point
+            self.node_list[A].add_edge(B, self.edge_list[-1]) #break point
+            self.node_list[B].add_edge(A, self.edge_list[-1]) #break point
 
     def add_node(self):
         for _ in range(self.nodes):

@@ -1,6 +1,7 @@
 import random
 import heapq
 
+from bots import Greedy
 '''
 Information on Every edge connected to it
 Nodes connected to it
@@ -16,10 +17,11 @@ class Node:
         self.proc_time = PROC_TIME
         self.neighbours = {}
 
-        self.policy = {}
+        self.policy = Greedy(id)
 
-    def add_edge(self, B, edge_id):
-        self.neighbours[B] = edge_id
+    def add_edge(self, B, edge):
+        self.neighbours[B] = edge
+        self.policy.add_neighbor(B, edge)
 
     def receive_packet(self, packet, time):
 
@@ -39,8 +41,8 @@ class Node:
             return
 
         # call to the RL
-        destination = -1
-        new_time = -1
+        destination = self.policy.run()
+        new_time = self.neighbours[destination].send_packet(packet, time)
 
         packet.sent(destination, new_time)
         return
@@ -70,6 +72,12 @@ class Edge:
 
         self.time_heap = []
 
+    def other_end(self, C):
+        if C == self.A:
+            return self.B
+        else:
+            return self.A
+
     def update_bandwidth(self, bandwidth = 0):
         if bandwidth == 0:
             self.bandwidth = random.randint(1,10) 
@@ -77,7 +85,7 @@ class Edge:
 
     def update_speed(self, speed = 0):
         if speed == 0:
-            self.bandwidth = random.randint(1,10)
+            self.speed = random.randint(1,10)
 
     def delete_edge(self):
         if self.capacity == 0:
