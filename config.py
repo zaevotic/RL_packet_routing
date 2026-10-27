@@ -124,13 +124,23 @@ class Edge:
             self.bandwidth = -1
 
     def send_packet(self, packet, time):
-        start_time = time
-        if(self.capacity >= self.bandwidth):
-            start_time = self.time_heap[self.capacity - self.bandwidth]
-        self.capacity += 1
+        # 1. Clean up in-flight packets that have completed transmission at or before 'time'
+        while self.time_heap and self.time_heap[0] <= time:
+            heapq.heappop(self.time_heap)
 
-        start_time -= (-packet.size // self.speed)
-        heapq.heappush(self.time_heap, start_time)
+        # 2. Schedule packet transmission
+        if len(self.time_heap) < self.bandwidth:
+            start_time = time
+        else:
+            # All bandwidth channels busy, wait until earliest in-flight transmission completes
+            start_time = max(time, self.time_heap[0])
 
-        return start_time
+        # 3. Transmission delay based on packet size and edge speed
+        delay = max(1, -(-packet.size // self.speed))
+        arrival_time = start_time + delay
+
+        heapq.heappush(self.time_heap, arrival_time)
+        self.capacity = len(self.time_heap)
+
+        return arrival_time
         

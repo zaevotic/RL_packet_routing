@@ -1,7 +1,7 @@
 import json
 import random
 import sys
-from bots import BOT_CATALOG, get_bot_class, DijkstraBot, MinHopBot
+from bots import BOT_CATALOG, get_bot_class, DijkstraBot, MinHopBot, RLcraft
 from config import Edge, Node
 from network import Network
 from packet import Status
@@ -15,8 +15,18 @@ def compute_stats(net, step_count):
     in_transit = total - delivered - dead
 
     del_rate = round(delivered / total, 3) if total else 0.0
-    del_pkts = [p for p in net.packet_list if p.status == Status.END and len(p.history_time) > 1]
-    avg_lat = round(sum(p.history_time[-2] - p.history_time[0] for p in del_pkts) / len(del_pkts), 2) if del_pkts else 0.0
+    del_pkts = [p for p in net.packet_list if p.status == Status.END and len(p.history_time) >= 2]
+
+    latencies = []
+    for p in del_pkts:
+        valid_times = [t for t in p.history_time if t != -1]
+        if len(valid_times) >= 2:
+            lat = max(0, valid_times[-1] - valid_times[0])
+            latencies.append(lat)
+        elif len(valid_times) == 1:
+            latencies.append(0)
+
+    avg_lat = round(sum(latencies) / len(latencies), 2) if latencies else 0.0
     avg_hops = round(sum(len(p.history_loc) - 1 for p in del_pkts) / len(del_pkts), 2) if del_pkts else 0.0
 
     return {
@@ -208,7 +218,16 @@ def main():
         print(f"Average Latency       : {stats['avg_lat']} ticks")
         print(f"Average Hops          : {stats['avg_hops']}")
 
-        # Build baseline entries with the chosen bot active and only implemented bots
+        # Preserve previous benchmark metrics if available for non-active bots
+        existing_baselines = {}
+        try:
+            with open("metrics.json", "r", encoding="utf-8") as f:
+                old_data = json.load(f)
+                for b in old_data.get("baselines", []):
+                    existing_baselines[b["name"]] = b
+        except Exception:
+            pass
+
         baselines = []
         for b in BOT_CATALOG:
             if b["id"] == chosen_policy_id:
@@ -219,23 +238,21 @@ def main():
                     "avg_hops": stats["avg_hops"],
                     "status": "Active (Current Run)"
                 })
+            elif b["name"] in existing_baselines:
+                old_entry = dict(existing_baselines[b["name"]])
+                old_entry["status"] = "Benchmarked"
+                baselines.append(old_entry)
             else:
                 baselines.append({
                     "name": b["name"],
-                    "delivery_rate": round(stats["del_rate"] * 0.9, 2),
-                    "avg_latency": round(stats["avg_lat"] * 1.15, 2) if stats["avg_lat"] else 12.0,
-                    "avg_hops": round(stats["avg_hops"] * 1.1, 2) if stats["avg_hops"] else 2.5,
+                    "delivery_rate": 0.0,
+                    "avg_latency": 0.0,
+                    "avg_hops": 0.0,
                     "status": "Implemented"
                 })
 
         metrics_data = {
-            "training": {
-                "episodes": list(range(1, max(2, stats["step_count"] + 1))),
-                "reward": [round(stats["del_rate"] * 50 - i * 0.1, 2) for i in range(stats["step_count"])],
-                "loss": [round(max(0.01, 1.0 / (i + 1)), 3) for i in range(stats["step_count"])],
-                "epsilon": [round(max(0.05, 0.2 * (0.98 ** i)), 3) for i in range(stats["step_count"])],
-                "q_mean": [round(i * 0.25, 2) for i in range(stats["step_count"])]
-            },
+            "training": RLcraft.get_training_metrics(),
             "baselines": baselines
         }
 
@@ -286,15 +303,8 @@ def main():
 
         print("=" * 90)
 
-        primary_st = benchmark_results[0][1]
         metrics_data = {
-            "training": {
-                "episodes": list(range(1, max(2, primary_st["step_count"] + 1))),
-                "reward": [round(primary_st["del_rate"] * 50 - i * 0.1, 2) for i in range(primary_st["step_count"])],
-                "loss": [round(max(0.01, 1.0 / (i + 1)), 3) for i in range(primary_st["step_count"])],
-                "epsilon": [round(max(0.05, 0.2 * (0.98 ** i)), 3) for i in range(primary_st["step_count"])],
-                "q_mean": [round(i * 0.25, 2) for i in range(primary_st["step_count"])]
-            },
+            "training": RLcraft.get_training_metrics(),
             "baselines": baselines
         }
 

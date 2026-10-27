@@ -146,10 +146,14 @@ svg.ch{display:block;width:100%;height:auto;overflow:visible}
 .hb.upcoming i{background:var(--warn);opacity:0.6}
 .hb b{font-weight:400;text-align:right}
 .hb span{color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tw{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{font-weight:500;color:var(--mute);text-align:left;padding:8px 16px 8px 0;white-space:nowrap;border-bottom:1px solid var(--line)}
-td{padding:8px 16px 8px 0;border-top:1px solid var(--line);white-space:nowrap}
+.tw{overflow:auto;max-height:360px;border:1px solid var(--line);border-radius:6px;background:rgba(255,255,255,0.015)}
+.tw table{width:100%;border-collapse:collapse;font-size:13px}
+.tw thead th{position:sticky;top:0;background:var(--bg);z-index:2;box-shadow:0 1px 0 var(--line);font-weight:600;color:var(--ink);text-align:left;padding:8px 16px;white-space:nowrap}
+.tw tbody td{padding:8px 16px;border-top:1px solid var(--line);white-space:nowrap}
+.tw tbody tr:hover{background:rgba(127,127,127,0.05)}
+.tw::-webkit-scrollbar{width:6px;height:6px}
+.tw::-webkit-scrollbar-track{background:transparent}
+.tw::-webkit-scrollbar-thumb{background:var(--edge);border-radius:3px}
 td.deliver{color:var(--good);font-weight:500}td.drop{color:var(--bad);font-weight:500}td.live{color:var(--mute)}
 pre{font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);overflow:auto;background:rgba(255,255,255,0.02);padding:14px;border-radius:6px;border:1px solid var(--line)}
 
@@ -176,9 +180,7 @@ pre{font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);
  </div>
  <nav>
   <button id="demo">Demo trace</button>
-  <button id="fetch">Fetch trace.json</button>
   <button id="upload">Upload trace.json</button>
-  <button id="fetchM" hidden>Fetch metrics.json</button>
   <button id="mbtn" hidden>Upload metrics.json</button>
   <input id="file" type="file" accept=".json,.jsonl,.txt,application/json" hidden>
   <input id="mfile" type="file" accept=".json,application/json" hidden>
@@ -599,38 +601,6 @@ $("#file").onchange = function(e){
  rd.readAsText(f);
 };
 
-$("#fetch").onclick = function(){
- fetch("./trace.json?t=" + Date.now(), { cache: "no-store" })
-  .then(function(r){
-    if(!r.ok) throw new Error("HTTP " + r.status);
-    return r.text();
-  })
-  .then(function(t){
-    load(t);
-    note("Loaded trace.json successfully!");
-  })
-  .catch(function(err){
-    if(window.location.protocol === "file:"){
-      if(window.showOpenFilePicker){
-        window.showOpenFilePicker({
-          types: [{ description: 'JSON Trace (trace.json)', accept: { 'application/json': ['.json'] } }]
-        }).then(function(handles){
-          return handles[0].getFile();
-        }).then(function(file){
-          return file.text();
-        }).then(function(text){
-          load(text);
-          note("Loaded trace.json successfully!");
-        }).catch(function(){});
-        return;
-      }
-      $("#file").click();
-      return;
-    }
-    note("Couldn’t fetch trace.json: " + (err.message || "File not found") + ". Upload trace.json or host with: python3 -m http.server");
-  });
-};
-
 function tryAutoLoad(){
  fetch("./trace.json?t=" + Date.now(), { cache: "no-store" })
   .then(function(r){ if(r.ok) return r.text(); })
@@ -1004,7 +974,7 @@ var PANELS=[
    var S={deliver:"Delivered",drop:"Dropped",live:"In flight"};
    return'<div class="tw"><table><thead><tr><th>Packet</th><th>Route Traversed</th><th>Latency</th><th>Hops</th><th>Status</th></tr></thead><tbody>'+
    A.all.map(function(p){
-    return'<tr><td>P'+p.id+'</td><td>'+p.path.map(A.lab).join(" → ")+'</td><td>'+(p.lat!=null?p.lat:"–")+'</td><td>'+p.hops+'</td><td class="'+p.status+'">'+S[p.status]+'</td></tr>';
+    return'<tr><td><b>P'+p.id+'</b></td><td>'+p.path.map(A.lab).join(" → ")+'</td><td>'+(p.lat!=null?p.lat+" ticks":"–")+'</td><td>'+p.hops+'</td><td class="'+p.status+'">'+S[p.status]+'</td></tr>';
    }).join("")+'</tbody></table></div>';
   }}
 ];
@@ -1049,7 +1019,8 @@ function setView(v){
  $(".app").dataset.view=v;
  $("#tabR").setAttribute("aria-selected",v==="replay");
  $("#tabA").setAttribute("aria-selected",v==="analytics");
- $("#fetchM").hidden=v!=="analytics";
+ $("#demo").hidden=v!=="replay";
+ $("#upload").hidden=v!=="replay";
  $("#mbtn").hidden=v!=="analytics";
  if(v==="analytics"){
   pause();
@@ -1060,39 +1031,6 @@ function setView(v){
 $("#tabR").onclick=function(){setView("replay")};
 $("#tabA").onclick=function(){setView("analytics")};
 $("#mbtn").onclick=function(){$("#mfile").click()};
-$("#fetchM").onclick=function(){
- fetch("./metrics.json?t=" + Date.now(), { cache: "no-store" })
-  .then(function(r){
-    if(!r.ok) throw new Error("HTTP " + r.status);
-    return r.json();
-  })
-  .then(function(m){
-    metrics=m;
-    metricsSample=false;
-    anErr="";
-    render();
-    note("Loaded metrics.json successfully!");
-  })
-  .catch(function(err){
-    if(window.location.protocol === "file:" && window.showOpenFilePicker){
-      window.showOpenFilePicker({
-        types: [{ description: 'JSON Metrics (metrics.json)', accept: { 'application/json': ['.json'] } }]
-      }).then(function(handles){
-        return handles[0].getFile();
-      }).then(function(file){
-        return file.text();
-      }).then(function(text){
-        metrics=JSON.parse(text);
-        metricsSample=false;
-        anErr="";
-        render();
-        note("Loaded metrics.json successfully!");
-      }).catch(function(){});
-      return;
-    }
-    $("#mfile").click();
-  });
-};
 $("#mfile").onchange=function(e){
  var f=e.target.files[0];
  if(!f) return;
