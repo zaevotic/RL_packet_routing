@@ -48,24 +48,28 @@ def main():
         net.generate_traffic(A=src, B=dst, packets=10)
         logger.traffic_generated(net, src, dst, packets=10)
 
-        # Add ad-hoc packets
+        # Add ad-hoc packets with distributed arrival times
         for _ in range(15):
             s = random.randint(0, net.nodes - 1)
             d = random.randint(0, net.nodes - 1)
             while s == d:
                 d = random.randint(0, net.nodes - 1)
-            net.generate_packet(A=s, B=d)
+            net.generate_packet(A=s, B=d, start_time=random.randint(0, 30))
     else:
         # Default: generate simple random packets
         pkt_count = input("How many packets to generate? [default: 10]: ").strip()
         num_packets = int(pkt_count) if pkt_count.isdigit() else 10
 
-        for _ in range(num_packets):
+        rand_time = input("Randomize packet entry times across simulation? (y/n) [default: y]: ").strip().lower()
+        spread = max(10, num_packets * 2)
+
+        for i in range(num_packets):
             s = random.randint(0, net.nodes - 1)
             d = random.randint(0, net.nodes - 1)
             while s == d:
                 d = random.randint(0, net.nodes - 1)
-            net.generate_packet(A=s, B=d)
+            t = random.randint(0, spread) if rand_time != "n" else 0
+            net.generate_packet(A=s, B=d, start_time=t)
 
     print(f"Total packets in queue: {len(net.packet_queue)}\n")
 

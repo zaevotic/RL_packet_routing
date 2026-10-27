@@ -79,7 +79,7 @@ class Network:
     def populate_node():
         pass
 
-    def generate_traffic(self, A = -1, B = -1, packets = -1, size = -1, ttl = 50):
+    def generate_traffic(self, A = -1, B = -1, packets = -1, size = -1, ttl = 50, start_time = None):
         while A == B:
             A = random.randint(0, self.nodes - 1)
             B = random.randint(0, self.nodes - 1)
@@ -96,13 +96,14 @@ class Network:
         if size <= 0 :
             size = random.randint(Size_init, Size_end)
 
-        self.packet_list.append(Packet(self.packet_count, A, B, size, self.time, ttl))
+        pkt_time = self.time if start_time is None else start_time
+        self.packet_list.append(Packet(self.packet_count, A, B, size, pkt_time, ttl))
         heapq.heappush(self.packet_queue, (self.packet_list[-1].history_time[-1], self.packet_list[-1].id))
         self.packet_count += 1
         logger.traffic_generated(self, A, B, packets)
 
 
-    def generate_packet(self, A = -1, B = -1, size = -1, ttl = 50):
+    def generate_packet(self, A = -1, B = -1, size = -1, ttl = 50, start_time = None):
         while A == B:
             A = random.randint(0, self.nodes - 1)
             B = random.randint(0, self.nodes - 1)
@@ -110,7 +111,8 @@ class Network:
         if size <= 0 :
             size = random.randint(Size_init, Size_end)
 
-        self.packet_list.append(Packet(self.packet_count, A, B, size, self.time, ttl))
+        pkt_time = self.time if start_time is None else start_time
+        self.packet_list.append(Packet(self.packet_count, A, B, size, pkt_time, ttl))
         heapq.heappush(self.packet_queue, (self.packet_list[-1].history_time[-1], self.packet_list[-1].id))
         self.packet_count += 1
 

@@ -5,61 +5,109 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RL Packet Routing Visualizer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="trace.js"></script>
 <style>
-:root{--bg:#fafafa;--ink:#121212;--mute:#77777f;--line:#e3e3e6;--edge:#cfcfd4;--acc:#1f3dff;--bad:#e5322d;color-scheme:light;
+:root{--bg:#fafafa;--ink:#121212;--mute:#77777f;--line:#e3e3e6;--edge:#cfcfd4;--acc:#1f3dff;--bad:#e5322d;--good:#10b981;--warn:#f59e0b;color-scheme:light;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0e10;--ink:#f2f2f3;--mute:#8b8b93;--line:#26262b;--edge:#35353c;--acc:#7189ff;--bad:#ff5b55;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#0e0e10;--ink:#f2f2f3;--mute:#8b8b93;--line:#26262b;--edge:#35353c;--acc:#7189ff;--bad:#ff5b55;color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0e10;--ink:#f2f2f3;--mute:#8b8b93;--line:#26262b;--edge:#35353c;--acc:#7189ff;--bad:#ff5b55;--good:#34d399;--warn:#fbbf24;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e0e10;--ink:#f2f2f3;--mute:#8b8b93;--line:#26262b;--edge:#35353c;--acc:#7189ff;--bad:#ff5b55;--good:#34d399;--warn:#fbbf24;color-scheme:dark}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font:400 14px/1.5 "Schibsted Grotesk",system-ui,sans-serif;font-variant-numeric:tabular-nums;overflow:hidden}
 button,select{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 :focus-visible{outline:2px solid var(--acc);outline-offset:3px}
-.app{height:100%;display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:1fr 300px}
-header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:20px 32px;border-bottom:1px solid var(--line)}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:1fr 340px}
+header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:16px 28px;border-bottom:1px solid var(--line)}
 h1{font-size:15px;font-weight:600;letter-spacing:-.01em}
 h1 span{color:var(--mute);font-weight:400}
-nav{display:flex;gap:24px}
+nav{display:flex;gap:20px}
 nav button{padding:4px 0;border-bottom:1px solid transparent;color:var(--mute);transition:color .15s,border-color .15s}
 nav button:hover{color:var(--ink);border-color:var(--ink)}
 main{display:grid;grid-template-rows:auto 1fr;min-height:0;min-width:0}
-.stats{display:flex;gap:56px;padding:28px 32px 8px}
-.stat b{display:block;font-size:34px;font-weight:500;letter-spacing:-.03em;line-height:1}
-.stat small{display:block;margin-top:8px;color:var(--mute);font-size:12px}
+.stats{display:flex;gap:48px;padding:24px 32px 8px}
+.stat b{display:block;font-size:32px;font-weight:500;letter-spacing:-.03em;line-height:1}
+.stat small{display:block;margin-top:6px;color:var(--mute);font-size:12px}
 .stat.d b{color:var(--acc)}.stat.x b{color:var(--bad)}
 .stage{position:relative;min-height:0}
 canvas{position:absolute;inset:0;width:100%;height:100%}
 .empty{position:absolute;inset:0;display:grid;place-content:center;text-align:center;color:var(--mute);gap:6px}
 .empty button{color:var(--ink);border-bottom:1px solid var(--ink)}
 aside{border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-aside h2{font-size:12px;font-weight:500;color:var(--mute);padding:20px 24px 12px;display:flex;justify-content:space-between}
-#log{list-style:none;padding:0 24px 16px;overflow:auto;flex:1;font-size:13px}
-#log li{display:grid;grid-template-columns:34px 1fr;gap:8px;padding:7px 0 7px 10px;border-left:2px solid var(--line);margin-bottom:2px}
-#log li time{color:var(--mute)}
-#log li.deliver{border-color:var(--acc)}#log li.drop{border-color:var(--bad)}
-#log li.note{display:block;color:var(--mute)}
-footer{grid-column:1/-1;display:flex;align-items:center;gap:20px;padding:16px 32px;border-top:1px solid var(--line)}
+aside h2{font-size:12px;font-weight:600;color:var(--mute);padding:18px 20px 10px;display:flex;justify-content:space-between;text-transform:uppercase;letter-spacing:0.04em}
+#log{list-style:none;padding:0 16px 16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px}
+
+/* Grouped Event Stream Cards */
+.time-card{
+ background:rgba(255,255,255,0.03);
+ border:1px solid var(--line);
+ border-left:3px solid var(--acc);
+ border-radius:8px;
+ padding:9px 12px;
+ font-size:12.5px;
+ display:flex;
+ flex-direction:column;
+ gap:6px;
+ transition:border-color 0.15s, background 0.15s;
+}
+.time-card:hover{
+ background:rgba(255,255,255,0.06);
+ border-color:var(--edge);
+}
+.time-head{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ font-size:11px;
+ font-weight:600;
+ text-transform:uppercase;
+ letter-spacing:0.04em;
+ color:var(--mute);
+ border-bottom:1px solid var(--line);
+ padding-bottom:4px;
+}
+.time-head time{ color:var(--acc); font-weight:700; font-size:12px; }
+.time-head .badge{ font-size:10px; padding:1px 6px; border-radius:10px; background:var(--line); color:var(--ink); }
+
+.cat-row{ display:flex; align-items:baseline; gap:8px; line-height:1.4; }
+.cat-tag{
+ font-size:10.5px;
+ font-weight:700;
+ text-transform:uppercase;
+ letter-spacing:0.03em;
+ padding:1px 5px;
+ border-radius:4px;
+ flex-shrink:0;
+}
+.cat-tag.spawn{ background:rgba(56,189,248,0.15); color:var(--acc); }
+.cat-tag.hop{ background:rgba(148,163,184,0.15); color:var(--ink); }
+.cat-tag.deliver{ background:rgba(16,185,129,0.15); color:var(--good); }
+.cat-tag.drop{ background:rgba(244,63,94,0.15); color:var(--bad); }
+
+.cat-desc{ color:var(--ink); flex:1; word-break:break-word; }
+.cat-desc .pkt{ font-weight:600; cursor:pointer; padding:0 2px; }
+.cat-desc .pkt:hover{ text-decoration:underline; }
+
+footer{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:14px 28px;border-top:1px solid var(--line)}
 .ctl{display:flex;gap:4px}
 .ctl button{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;transition:background .15s}
 .ctl button:hover{background:var(--line)}
 .ctl .go{background:var(--ink);color:var(--bg)}.ctl .go:hover{background:var(--ink);opacity:.85}
 .ctl svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .ctl .go svg{fill:currentColor;stroke:none}
-.lbl{color:var(--mute);min-width:52px}
+.lbl{color:var(--mute);min-width:60px;font-size:13px}
 input[type=range]{flex:1;appearance:none;-webkit-appearance:none;height:20px;background:none;cursor:pointer;min-width:0}
-input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--edge)}
-input[type=range]::-moz-range-track{height:1px;background:var(--edge)}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--ink);margin-top:-6px;border:0}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--edge)}
+input[type=range]::-moz-range-track{height:2px;background:var(--edge)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--ink);margin-top:-5px;border:0}
 input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--ink);border:0}
-select{padding:4px 0;color:var(--mute)}
-@media (max-width:820px){
+select{padding:4px 0;color:var(--mute);font-size:13px}
+@media (max-width:860px){
  body{overflow:auto}.app{height:auto;min-height:100%;grid-template-columns:1fr}
- header{padding:16px 20px;flex-wrap:wrap;gap:12px}nav{gap:18px}
- .stats{padding:20px;gap:28px;flex-wrap:wrap}.stat b{font-size:28px}
- .stage{height:55vh}aside{border-left:0;border-top:1px solid var(--line);max-height:260px}
- footer{padding:12px 20px;flex-wrap:wrap}footer .lbl{display:none}input[type=range]{order:3;flex-basis:100%}
+ header{padding:14px 18px;flex-wrap:wrap;gap:12px}nav{gap:14px}
+ .stats{padding:18px;gap:24px;flex-wrap:wrap}.stat b{font-size:26px}
+ .stage{height:52vh}aside{border-left:0;border-top:1px solid var(--line);max-height:280px}
+ footer{padding:12px 18px;flex-wrap:wrap}footer .lbl{display:none}input[type=range]{order:3;flex-basis:100%}
 }
 </style>
 </head>
@@ -88,19 +136,19 @@ select{padding:4px 0;color:var(--mute)}
  </div>
 </main>
 <aside>
- <h2>Event stream <span id="count">0 events</span></h2>
- <ul id="log"><li class="note">Ready. Load or fetch a trace.json to start.</li></ul>
+ <h2>Simultaneous Stream <span id="count">0 frames</span></h2>
+ <ul id="log"><li class="time-card" style="border-left-color:var(--mute)"><div class="cat-desc" style="color:var(--mute)">Ready. Load or fetch a trace.json to start.</div></li></ul>
 </aside>
 <footer>
  <div class="ctl">
-  <button id="back" aria-label="Previous step"><svg viewBox="0 0 16 16"><path d="M10.5 3 5.5 8l5 5"/></svg></button>
+  <button id="back" aria-label="Previous frame"><svg viewBox="0 0 16 16"><path d="M10.5 3 5.5 8l5 5"/></svg></button>
   <button id="play" class="go" aria-label="Play"><svg viewBox="0 0 16 16"><path d="M5 3v10l8-5z"/></svg></button>
-  <button id="fwd" aria-label="Next step"><svg viewBox="0 0 16 16"><path d="m5.5 3 5 5-5 5"/></svg></button>
+  <button id="fwd" aria-label="Next frame"><svg viewBox="0 0 16 16"><path d="m5.5 3 5 5-5 5"/></svg></button>
   <button id="reset" aria-label="Reset"><svg viewBox="0 0 16 16"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3"/></svg></button>
  </div>
- <span class="lbl" id="stepL">Step 0</span>
- <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Scrub through trace">
- <span class="lbl" id="stepR" style="text-align:right">Step 0</span>
+ <span class="lbl" id="stepL">Frame 0</span>
+ <input id="scrub" type="range" min="0" max="0" value="0" aria-label="Scrub through simulation">
+ <span class="lbl" id="stepR" style="text-align:right">Frame 0</span>
  <select id="speed" aria-label="Playback speed">
   <option value="0.5">0.5× speed</option><option value="1" selected>1× speed</option><option value="2">2× speed</option><option value="4">4× speed</option>
  </select>
@@ -108,19 +156,19 @@ select{padding:4px 0;color:var(--mute)}
 </div>
 <script>
 var $=function(s){return document.querySelector(s)};
-var trace=null,step=0,playing=false,speed=1,lastChange=0,S={},total=0,hoveredPacket=null;
+var trace=null,frameIdx=0,playing=false,speed=1,lastChange=0,S={},total=0,hoveredPacket=null;
 var cv=$("#cv"),ctx=cv.getContext("2d"),W=0,H=0,dpr=1;
 var ICON_PLAY='<svg viewBox="0 0 16 16"><path d="M5 3v10l8-5z"/></svg>',ICON_PAUSE='<svg viewBox="0 0 16 16"><path d="M4.5 3h2.5v10H4.5zM9 3h2.5v10H9z"/></svg>';
 var LET="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-// Harmonious palette for distinct packet trails
-var HUES = [225, 190, 275, 330, 35, 155, 210, 290, 48, 175];
+// Harmonious distinctive hues for packet trails
+var HUES = [225, 190, 275, 335, 35, 155, 210, 290, 48, 175, 250, 15];
 function getPacketColor(p, alpha){
  var h = HUES[Math.abs(p) % HUES.length];
  var isDark = document.documentElement.getAttribute("data-theme") === "dark" ||
               (!document.documentElement.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme:dark)").matches);
  var s = isDark ? "88%" : "82%";
- var l = isDark ? "66%" : "42%";
+ var l = isDark ? "66%" : "44%";
  return "hsla(" + h + "," + s + "," + l + "," + (alpha != null ? alpha : 1) + ")";
 }
 
@@ -132,307 +180,538 @@ function nm(n){
 }
 
 function makeDemo(){
- var nodes=[[.06,.5],[.2,.2],[.2,.8],[.38,.5],[.5,.15],[.5,.85],[.64,.5],[.8,.2],[.8,.8],[.94,.5]].map(function(p,i){return{id:i,x:p[0],y:p[1]}});
+ var nodes=[[.4,.45],[.45,.3],[.45,.65],[.52,.45],[.6,.25],[.6,.7],[.68,.45],[.78,.3],[.78,.65],[.85,.45]].map(function(p,i){return{id:i,x:p[0],y:p[1]}});
  var edges=[[0,1],[0,2],[1,3],[2,3],[1,4],[2,5],[3,4],[3,5],[3,6],[4,6],[5,6],[4,7],[5,8],[6,7],[6,8],[7,9],[8,9]];
  var adj=nodes.map(function(){return[]});edges.forEach(function(e){adj[e[0]].push(e[1]);adj[e[1]].push(e[0])});
  var s=7;function r(){s=(s*1664525+1013904223)%4294967296;return s/4294967296}
  var ev=[];
  for(var p=0;p<16;p++){
   var a=r()<.5?[0,1,2][Math.floor(r()*3)]:[7,8,9][Math.floor(r()*3)],b;
-  do{b=Math.floor(r()*10)}while(b===a||Math.abs(nodes[a].x-nodes[b].x)<.4);
+  do{b=Math.floor(r()*10)}while(b===a||Math.abs(nodes[a].x-nodes[b].x)<.3);
   var prev={};prev[a]=-1;var q=[a];
   while(q.length){var u=q.shift();if(u===b)break;adj[u].slice().sort(function(){return r()-.5}).forEach(function(v){if(!(v in prev)){prev[v]=u;q.push(v)}})}
   var path=[];for(var c=b;c!==-1;c=prev[c])path.unshift(c);
-  var t0=Math.floor(p*1.3),dropAt=r()<.22?1+Math.floor(r()*(path.length-1)):-1;
+  // Randomized start times
+  var t0=Math.floor(r()*14), dropAt=r()<.18?1+Math.floor(r()*(path.length-1)):-1;
   ev.push({t:t0,type:"spawn",p:p,node:a});
   for(var i=1;i<path.length;i++){
-   if(dropAt===i){ev.push({t:t0+i,type:"drop",p:p,node:path[i-1]});break}
-   ev.push({t:t0+i,type:"hop",p:p,from:path[i-1],to:path[i]});
-   if(i===path.length-1)ev.push({t:t0+i,type:"deliver",p:p,node:path[i]});
+   if(dropAt===i){ev.push({t:t0+i*2,type:"drop",p:p,node:path[i-1]});break}
+   ev.push({t:t0+i*2,type:"hop",p:p,from:path[i-1],to:path[i]});
+   if(i===path.length-1)ev.push({t:t0+i*2,type:"deliver",p:p,node:path[i]});
   }
  }
  ev=ev.map(function(e,i){return{e:e,i:i}}).sort(function(x,y){return x.e.t-y.e.t||x.i-y.i}).map(function(x){return x.e});
  return{nodes:nodes,edges:edges,events:ev};
 }
 
-// Automatically computes 2D spatial coordinates for arbitrary graphs without pre-defined positions
+// Centered Organic Layout with Strong Anti-Overlap Repulsion
 function layoutNodes(nodes, edges){
  var N = nodes.length;
  if(!N) return;
  var hasCoords = nodes.every(function(n){ return typeof n.x==="number" && typeof n.y==="number"; });
  if(hasCoords) return;
 
+ // 1. Initial golden spiral tightly clustered in the center
+ var golden = Math.PI * (3 - Math.sqrt(5));
  for(var i=0; i<N; i++){
-  var angle = (2 * Math.PI * i) / N - Math.PI / 2;
-  nodes[i].x = 0.5 + 0.40 * Math.cos(angle);
-  nodes[i].y = 0.5 + 0.38 * Math.sin(angle);
+  var r = 0.06 + 0.22 * Math.sqrt((i + 1) / N);
+  var theta = i * golden;
+  nodes[i].x = 0.5 + r * Math.cos(theta);
+  nodes[i].y = 0.5 + r * Math.sin(theta);
  }
 
- if(N > 1 && edges && edges.length > 0){
-  var iters = Math.min(50, 15 + N * 2);
-  for(var s=0; s<iters; s++){
-   var fx = new Float32Array(N), fy = new Float32Array(N);
-   for(var i=0; i<N; i++){
-    for(var j=i+1; j<N; j++){
-     var dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
-     var d = Math.hypot(dx, dy) || 0.01;
-     var f = Math.min(0.005 / (d * d), 0.05);
-     fx[i] += (dx/d)*f; fy[i] += (dy/d)*f;
-     fx[j] -= (dx/d)*f; fy[j] -= (dy/d)*f;
+ // 2. Physics simulation: strong node-node repulsion + edge springs + center gravity
+ var iters = Math.max(140, 50 + N * 3);
+ var minDist = Math.max(0.09, 0.75 / Math.sqrt(N));
+ var targetDist = Math.max(0.14, 0.95 / Math.sqrt(N));
+
+ for(var s=0; s<iters; s++){
+  var temp = 1 - (s / iters);
+  var fx = new Float32Array(N), fy = new Float32Array(N);
+
+  // Central gravity: prevents points from drifting to the edges
+  for(var i=0; i<N; i++){
+   fx[i] -= (nodes[i].x - 0.5) * 0.22;
+   fy[i] -= (nodes[i].y - 0.5) * 0.22;
+  }
+
+  // Node-node repulsion with guaranteed minimum separation
+  for(var i=0; i<N; i++){
+   for(var j=i+1; j<N; j++){
+    var dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+    var d = Math.hypot(dx, dy) || 0.001;
+    var rep = (0.016 / (d * d));
+    if(d < minDist){
+     rep += (minDist - d) * 1.8; // hard non-overlap push
     }
+    rep = Math.min(rep, 0.14) * temp;
+    fx[i] += (dx/d)*rep; fy[i] += (dy/d)*rep;
+    fx[j] -= (dx/d)*rep; fy[j] -= (dy/d)*rep;
    }
+  }
+
+  // Edge springs
+  if(edges){
    for(var k=0; k<edges.length; k++){
     var u = edges[k][0], v = edges[k][1];
     if(u < N && v < N){
      var dx = nodes[v].x - nodes[u].x, dy = nodes[v].y - nodes[u].y;
-     var d = Math.hypot(dx, dy) || 0.01;
-     var f = (d - 0.22) * 0.04;
-     fx[u] += (dx/d)*f; fy[u] += (dy/d)*f;
-     fx[v] -= (dx/d)*f; fy[v] -= (dy/d)*f;
+     var d = Math.hypot(dx, dy) || 0.001;
+     var spr = (d - targetDist) * 0.08 * temp;
+     fx[u] += (dx/d)*spr; fy[u] += (dy/d)*spr;
+     fx[v] -= (dx/d)*spr; fy[v] -= (dy/d)*spr;
     }
    }
-   for(var i=0; i<N; i++){
-    nodes[i].x = Math.max(0.07, Math.min(0.93, nodes[i].x + fx[i] * 0.4));
-    nodes[i].y = Math.max(0.09, Math.min(0.91, nodes[i].y + fy[i] * 0.4));
-   }
   }
+
+  for(var i=0; i<N; i++){
+   nodes[i].x += fx[i] * 0.35;
+   nodes[i].y += fy[i] * 0.35;
+  }
+ }
+
+ // 3. Scale and center comfortably into canvas bounds [0.15, 0.85]
+ var minX=1, maxX=0, minY=1, maxY=0;
+ for(var i=0; i<N; i++){
+  minX = Math.min(minX, nodes[i].x); maxX = Math.max(maxX, nodes[i].x);
+  minY = Math.min(minY, nodes[i].y); maxY = Math.max(maxY, nodes[i].y);
+ }
+ var spanX = Math.max(0.01, maxX - minX);
+ var spanY = Math.max(0.01, maxY - minY);
+ var scale = Math.min(0.72 / spanX, 0.68 / spanY, 1.3);
+ var midX = (minX + maxX) / 2;
+ var midY = (minY + maxY) / 2;
+
+ for(var i=0; i<N; i++){
+  nodes[i].x = 0.5 + (nodes[i].x - midX) * scale;
+  nodes[i].y = 0.5 + (nodes[i].y - midY) * scale;
  }
 }
 
-// Parses either standard trace object or NDJSON event streams from logger.py
+// Parses trace data and groups events into simultaneous time frames
 function parseTraceData(raw){
+ var parsed = null;
  if(typeof raw === "object" && raw !== null && Array.isArray(raw.nodes) && Array.isArray(raw.events)){
-  return raw;
- }
- var text = (typeof raw === "string" ? raw : "").trim();
- if(!text) return null;
-
- try {
-  var obj = JSON.parse(text);
-  if(obj && Array.isArray(obj.nodes) && Array.isArray(obj.events)) return obj;
- } catch(e){}
-
- var lines = text.split("\n");
- var nodes = [], edges = [], events = [];
-
- for(var i=0; i<lines.length; i++){
-  var line = lines[i].trim();
-  if(!line) continue;
+  parsed = raw;
+ } else {
+  var text = (typeof raw === "string" ? raw : "").trim();
+  if(!text) return null;
   try {
-   var ev = JSON.parse(line);
-   if(ev.type === "GRAPH_INIT"){
-    if(Array.isArray(ev.nodes)){
-     nodes = ev.nodes.map(function(n, idx){
-      return (typeof n === "object" && n !== null) ? n : { id: n != null ? n : idx };
-     });
-    }
-    if(Array.isArray(ev.edges)){
-     edges = ev.edges.map(function(e){
-      return Array.isArray(e) ? e : [e.from, e.to];
-     });
-    }
-   } else if(ev.type === "spawn" || ev.type === "PACKET_CREATED"){
-    events.push({ t: ev.t != null ? ev.t : (ev.time || 0), type: "spawn", p: ev.p != null ? ev.p : ev.id, node: ev.node != null ? ev.node : ev.start });
-   } else if(ev.type === "hop" || ev.type === "PACKET_MOVED"){
-    events.push({ t: ev.t != null ? ev.t : (ev.time || 0), type: "hop", p: ev.p != null ? ev.p : ev.id, from: ev.from, to: ev.to });
-   } else if(ev.type === "deliver" || ev.type === "PACKET_DELIVERED"){
-    events.push({ t: ev.t != null ? ev.t : (ev.time || 0), type: "deliver", p: ev.p != null ? ev.p : ev.id, node: ev.node != null ? ev.node : (ev.end != null ? ev.end : ev.at) });
-   } else if(ev.type === "drop" || ev.type === "PACKET_DROPPED"){
-    events.push({ t: ev.t != null ? ev.t : (ev.time || 0), type: "drop", p: ev.p != null ? ev.p : ev.id, node: ev.node });
+   var obj = JSON.parse(text);
+   if(obj && Array.isArray(obj.nodes) && Array.isArray(obj.events)) parsed = obj;
+  } catch(e){}
+
+  if(!parsed){
+   var lines = text.split("\n");
+   var nodes = [], edges = [], events = [];
+   for(var i=0; i<lines.length; i++){
+    var line = lines[i].trim();
+    if(!line) continue;
+    try {
+     var ev = JSON.parse(line);
+     if(ev.type === "GRAPH_INIT"){
+      if(Array.isArray(ev.nodes)){
+       nodes = ev.nodes.map(function(n, idx){
+        return (typeof n === "object" && n !== null) ? n : { id: n != null ? n : idx };
+       });
+      }
+      if(Array.isArray(ev.edges)){
+       edges = ev.edges.map(function(e){ return Array.isArray(e) ? e : [e.from, e.to]; });
+      }
+     } else if(ev.type === "spawn" || ev.type === "PACKET_CREATED"){
+      events.push({ t: ev.t != null ? ev.t : (ev.time || 0), type: "spawn", p: ev.p != null ? ev.p : ev.id, node: ev.node != null ? ev.node : ev.start });
+     } else if(ev.type === "hop" || ev.type === "PACKET_MOVED"){
+      events.push({ t: ev.t != null ? ev.t : (ev.time || 0), type: "hop", p: ev.p != null ? ev.p : ev.id, from: ev.from, to: ev.to });
+     } else if(ev.type === "deliver" || ev.type === "PACKET_DELIVERED"){
+      events.push({ t: ev.t != null ? ev.t : (ev.time || 0), type: "deliver", p: ev.p != null ? ev.p : ev.id, node: ev.node != null ? ev.node : (ev.end != null ? ev.end : ev.at) });
+     } else if(ev.type === "drop" || ev.type === "PACKET_DROPPED"){
+      events.push({ t: ev.t != null ? ev.t : (ev.time || 0), type: "drop", p: ev.p != null ? ev.p : ev.id, node: ev.node });
+     }
+    } catch(err){}
    }
-  } catch(err){}
+
+   if(nodes.length === 0){
+    var maxNode = -1;
+    edges.forEach(function(e){ maxNode = Math.max(maxNode, e[0], e[1]); });
+    events.forEach(function(e){
+     if(e.node != null) maxNode = Math.max(maxNode, e.node);
+     if(e.from != null) maxNode = Math.max(maxNode, e.from);
+     if(e.to != null) maxNode = Math.max(maxNode, e.to);
+    });
+    for(var n=0; n<=maxNode; n++) nodes.push({ id: n });
+   }
+   parsed = { nodes: nodes, edges: edges, events: events };
+  }
  }
 
- if(nodes.length === 0){
-  var maxNode = -1;
-  edges.forEach(function(e){ maxNode = Math.max(maxNode, e[0], e[1]); });
-  events.forEach(function(e){
-   if(e.node != null) maxNode = Math.max(maxNode, e.node);
-   if(e.from != null) maxNode = Math.max(maxNode, e.from);
-   if(e.to != null) maxNode = Math.max(maxNode, e.to);
-  });
-  for(var n=0; n<=maxNode; n++) nodes.push({ id: n });
- }
+ if(!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.events)) return null;
 
- return { nodes: nodes, edges: edges, events: events };
+ // Sort events by time
+ parsed.events.sort(function(a, b){ return (a.t || 0) - (b.t || 0); });
+
+ // Group simultaneous events by timestamp into timeFrames
+ var framesMap = {};
+ var frames = [];
+ parsed.events.forEach(function(e){
+  var t = e.t || 0;
+  if(!framesMap[t]){
+   var f = { t: t, events: [], spawns: [], hops: [], delivers: [], drops: [] };
+   framesMap[t] = f;
+   frames.push(f);
+  }
+  var fr = framesMap[t];
+  fr.events.push(e);
+  if(e.type === "spawn") fr.spawns.push(e);
+  else if(e.type === "hop") fr.hops.push(e);
+  else if(e.type === "deliver") fr.delivers.push(e);
+  else if(e.type === "drop") fr.drops.push(e);
+ });
+
+ parsed.timeFrames = frames;
+ return parsed;
 }
 
 function load(t,msg){
  var parsed = parseTraceData(t);
- if(!parsed||!Array.isArray(parsed.nodes)||!Array.isArray(parsed.events)){
+ if(!parsed){
   note("That file isn’t a valid trace. It needs a nodes list and an events list.");
   return;
  }
- trace=parsed;
- trace.edges=trace.edges||[];
+ trace = parsed;
+ trace.edges = trace.edges || [];
  layoutNodes(trace.nodes, trace.edges);
- total=new Set(trace.events.map(function(e){return e.p})).size;
- pause();step=0;$("#empty").style.display="none";
- var sc=$("#scrub");sc.max=trace.events.length;sc.value=0;
- $("#stepR").textContent="Step "+trace.events.length;
+ total = new Set(trace.events.map(function(e){ return e.p; })).size;
+
+ pause();
+ frameIdx = 0;
+ $("#empty").style.display = "none";
+ var sc = $("#scrub");
+ sc.max = trace.timeFrames.length;
+ sc.value = 0;
+ $("#stepR").textContent = "Frame " + trace.timeFrames.length;
+ $("#count").textContent = trace.timeFrames.length + " frames (" + trace.events.length + " events)";
  go(0);
 }
-function note(m){$("#log").innerHTML='<li class="note"></li>';$("#log").firstChild.textContent=m}
+
+function note(m){
+ $("#log").innerHTML = '<li class="time-card" style="border-left-color:var(--mute)"><div class="cat-desc" style="color:var(--mute)">' + m + '</div></li>';
+}
 
 function go(n){
- if(!trace)return;
- step=Math.max(0,Math.min(trace.events.length,n));lastChange=performance.now();
- S={};var ev=trace.events;
- for(var i=0;i<step;i++){
-  var e=ev[i], o=S[e.p]||(S[e.p]={id: e.p, path: [], status: "live"});
-  if(e.type==="spawn"){
-   o.path=[e.node];
-   o.at=e.node;
-   o.idx=i;
-   o.status="live";
-  } else if(e.type==="hop"){
-   if(!o.path || o.path.length===0) o.path=[e.from];
-   o.path.push(e.to);
-   o.from=e.from;
-   o.at=e.to;
-   o.idx=i;
-   o.status="live";
-  } else {
-   o.status=e.type;
-   o.idx=i;
+ if(!trace || !trace.timeFrames) return;
+ frameIdx = Math.max(0, Math.min(trace.timeFrames.length, n));
+ lastChange = performance.now();
+
+ S = {};
+ var currentSimTime = 0;
+
+ // Evaluate simulation state up through frameIdx
+ for(var fi = 0; fi < frameIdx; fi++){
+  var fr = trace.timeFrames[fi];
+  currentSimTime = fr.t;
+  for(var ei = 0; ei < fr.events.length; ei++){
+   var e = fr.events[ei];
+   var o = S[e.p] || (S[e.p] = { id: e.p, path: [], status: "live" });
+   if(e.type === "spawn"){
+    o.path = [e.node];
+    o.at = e.node;
+    o.from = null;
+    o.status = "live";
+    o.activeFrame = fi;
+   } else if(e.type === "hop"){
+    if(!o.path || o.path.length === 0) o.path = [e.from];
+    o.path.push(e.to);
+    o.from = e.from;
+    o.at = e.to;
+    o.status = "live";
+    o.activeFrame = fi;
+   } else {
+    o.status = e.type;
+    o.activeFrame = fi;
+   }
   }
  }
 
- var fl=0,de=0,dr=0;
- for(var k in S){var s=S[k].status;if(s==="live")fl++;else if(s==="deliver")de++;else if(s==="drop")dr++}
- $("#sTime").textContent=step?ev[step-1].t:0;$("#sFlight").textContent=fl;$("#sDel").textContent=de;$("#sDrop").textContent=dr;$("#sTot").textContent=total;
- $("#stepL").textContent="Step "+step;$("#scrub").value=step;$("#count").textContent=step+" events";
+ // Compute telemetry numbers
+ var fl = 0, de = 0, dr = 0;
+ for(var k in S){
+  var s = S[k].status;
+  if(s === "live") fl++;
+  else if(s === "deliver") de++;
+  else if(s === "drop") dr++;
+ }
 
- var h="";for(var j=step-1;j>=Math.max(0,step-60);j--){h+=row(ev[j])}
- $("#log").innerHTML=h||'<li class="note">Press play or step forward to begin.</li>';
- if(step>=ev.length&&playing)pause();
+ $("#sTime").textContent = currentSimTime;
+ $("#sFlight").textContent = fl;
+ $("#sDel").textContent = de;
+ $("#sDrop").textContent = dr;
+ $("#sTot").textContent = total;
+ $("#stepL").textContent = "Frame " + frameIdx;
+ $("#scrub").value = frameIdx;
+
+ // Render combined simultaneous update cards in Event Stream
+ var html = "";
+ for(var j = frameIdx - 1; j >= Math.max(0, frameIdx - 35); j--){
+  html += renderGroupedCard(trace.timeFrames[j]);
+ }
+ $("#log").innerHTML = html || '<li class="time-card" style="border-left-color:var(--mute)"><div class="cat-desc" style="color:var(--mute)">Press play or step forward to begin simulation.</div></li>';
+
+ if(frameIdx >= trace.timeFrames.length && playing) pause();
 }
 
-function row(e){
- var m="Packet "+e.p;
- if(e.type==="spawn")m+=" entered at "+nm(e.node);
- else if(e.type==="hop")m+=" moved "+nm(e.from)+" → "+nm(e.to);
- else if(e.type==="deliver")m+=" delivered at "+nm(e.node);
- else m+=" dropped at "+nm(e.node);
- return'<li class="'+(e.type==="deliver"||e.type==="drop"?e.type:"")+'" data-p="'+e.p+'"><time>'+e.t+"</time><span>"+m+"</span></li>";
+// Combines simultaneous events category-wise into a clean grouped card
+function renderGroupedCard(fr){
+ var card = '<li class="time-card">';
+ card += '<div class="time-head"><time>t = ' + fr.t + '</time><span class="badge">' + fr.events.length + ' updates</span></div>';
+
+ if(fr.spawns.length > 0){
+  var byNode = {};
+  fr.spawns.forEach(function(e){
+   byNode[e.node] = (byNode[e.node] || []);
+   byNode[e.node].push('P' + e.p);
+  });
+  var desc = Object.keys(byNode).map(function(node){
+   return byNode[node].join(', ') + ' (Node ' + nm(+node) + ')';
+  }).join('; ');
+  card += '<div class="cat-row"><span class="cat-tag spawn">Entered</span><div class="cat-desc">' + desc + '</div></div>';
+ }
+
+ if(fr.hops.length > 0){
+  var hopsDesc = fr.hops.map(function(e){
+   return 'P' + e.p + ' (' + nm(e.from) + ' → ' + nm(e.to) + ')';
+  }).join(', ');
+  card += '<div class="cat-row"><span class="cat-tag hop">Forward</span><div class="cat-desc">' + hopsDesc + '</div></div>';
+ }
+
+ if(fr.delivers.length > 0){
+  var delDesc = fr.delivers.map(function(e){
+   return 'P' + e.p + ' at Node ' + nm(e.node);
+  }).join(', ');
+  card += '<div class="cat-row"><span class="cat-tag deliver">Delivered</span><div class="cat-desc">' + delDesc + '</div></div>';
+ }
+
+ if(fr.drops.length > 0){
+  var dropDesc = fr.drops.map(function(e){
+   return 'P' + e.p + ' at Node ' + nm(e.node);
+  }).join(', ');
+  card += '<div class="cat-row"><span class="cat-tag drop">Dropped</span><div class="cat-desc">' + dropDesc + '</div></div>';
+ }
+
+ card += '</li>';
+ return card;
 }
 
-// Hover event listener on log to spotlight individual packet streaks
+// Hover over packet badge in event log to spotlight
 $("#log").addEventListener("mouseover", function(e){
- var li = e.target.closest("li[data-p]");
- if(li) hoveredPacket = +li.getAttribute("data-p");
+ var target = e.target.textContent;
+ if(target && target.startsWith("P")){
+  var num = parseInt(target.slice(1));
+  if(!isNaN(num)) hoveredPacket = num;
+ }
 });
 $("#log").addEventListener("mouseout", function(e){
- var li = e.target.closest("li[data-p]");
- if(li) hoveredPacket = null;
+ hoveredPacket = null;
 });
 
-function play(){if(!trace)return;if(step>=trace.events.length)go(0);playing=true;lastChange=performance.now();$("#play").innerHTML=ICON_PAUSE;$("#play").setAttribute("aria-label","Pause")}
-function pause(){playing=false;$("#play").innerHTML=ICON_PLAY;$("#play").setAttribute("aria-label","Play")}
+function play(){
+ if(!trace || !trace.timeFrames) return;
+ if(frameIdx >= trace.timeFrames.length) go(0);
+ playing = true;
+ lastChange = performance.now();
+ $("#play").innerHTML = ICON_PAUSE;
+ $("#play").setAttribute("aria-label", "Pause");
+}
 
-$("#play").onclick=function(){playing?pause():play()};
-$("#fwd").onclick=function(){pause();go(step+1)};
-$("#back").onclick=function(){pause();go(step-1)};
-$("#reset").onclick=function(){pause();go(0)};
-$("#scrub").oninput=function(e){pause();go(+e.target.value)};
-$("#speed").onchange=function(e){speed=+e.target.value};
-function demo(){load(makeDemo());play()}
-$("#demo").onclick=demo;$("#demo2").onclick=demo;
-$("#upload").onclick=function(){$("#file").click()};
-$("#file").onchange=function(e){
- var f=e.target.files[0];
- if(!f)return;
- var rd=new FileReader();
- rd.onload=function(){
+function pause(){
+ playing = false;
+ $("#play").innerHTML = ICON_PLAY;
+ $("#play").setAttribute("aria-label", "Play");
+}
+
+$("#play").onclick = function(){ playing ? pause() : play(); };
+$("#fwd").onclick = function(){ pause(); go(frameIdx + 1); };
+$("#back").onclick = function(){ pause(); go(frameIdx - 1); };
+$("#reset").onclick = function(){ pause(); go(0); };
+$("#scrub").oninput = function(e){ pause(); go(+e.target.value); };
+$("#speed").onchange = function(e){ speed = +e.target.value; };
+
+function demo(){ load(makeDemo()); play(); }
+$("#demo").onclick = demo;
+$("#demo2").onclick = demo;
+$("#upload").onclick = function(){ $("#file").click(); };
+$("#file").onchange = function(e){
+ var f = e.target.files[0];
+ if(!f) return;
+ var rd = new FileReader();
+ rd.onload = function(){
   try{ load(rd.result); }
   catch(x){ note("Couldn’t read that file as JSON."); }
  };
  rd.readAsText(f);
 };
-$("#fetch").onclick=function(){
- fetch("trace.json").then(function(r){if(!r.ok)throw 0;return r.text()}).then(function(t){load(t)})
- .catch(function(){note("Couldn’t fetch trace.json from this page. Upload the file or run the demo instead.")})};
 
-// Auto-load on open: from window.__TRACE_DATA__ (zero-server / file://) or fetch (http://)
+$("#fetch").onclick = function(){
+ fetch("trace.json").then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(t){load(t);})
+ .catch(function(){note("Couldn’t fetch trace.json from this page. Upload the file or run the demo instead.");});
+};
+
 function tryAutoLoad(){
  if(window.__TRACE_DATA__ && window.__TRACE_DATA__.length > 0){
   load(window.__TRACE_DATA__);
   return;
  }
  if(window.location.protocol.startsWith("http")){
-  fetch("trace.json").then(function(r){if(r.ok)return r.text()}).then(function(t){if(t)load(t)}).catch(function(){});
+  fetch("trace.json").then(function(r){if(r.ok)return r.text();}).then(function(t){if(t)load(t);}).catch(function(){});
  }
 }
 window.addEventListener("DOMContentLoaded", tryAutoLoad);
 tryAutoLoad();
 
-function size(){var b=$("#stage").getBoundingClientRect();dpr=window.devicePixelRatio||1;W=b.width;H=b.height;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
-new ResizeObserver(size).observe($("#stage"));size();
+function size(){
+ var b = $("#stage").getBoundingClientRect();
+ dpr = window.devicePixelRatio || 1;
+ W = b.width;
+ H = b.height;
+ cv.width = W * dpr;
+ cv.height = H * dpr;
+ ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+new ResizeObserver(size).observe($("#stage"));
+size();
 
 function frame(now){
  requestAnimationFrame(frame);
- var cs=getComputedStyle(document.documentElement),C=function(n){return cs.getPropertyValue(n).trim()};
- ctx.clearRect(0,0,W,H);if(!trace)return;
- if(playing&&now-lastChange>800/speed){if(step<trace.events.length)go(step+1);else pause()}
+ var cs = getComputedStyle(document.documentElement), C = function(n){ return cs.getPropertyValue(n).trim(); };
+ ctx.clearRect(0, 0, W, H);
+ if(!trace || !trace.timeFrames) return;
 
- var padX=64,padY=48,P=function(n){
-  var o=trace.nodes[n];
+ if(playing && now - lastChange > 900 / speed){
+  if(frameIdx < trace.timeFrames.length) go(frameIdx + 1);
+  else pause();
+ }
+
+ var padX = 54, padY = 46;
+ var P = function(n){
+  var o = trace.nodes[n];
   if(!o) return [padX, padY];
-  return[padX+o.x*(W-2*padX),padY+o.y*(H-2*padY)];
+  return [padX + o.x * (W - 2 * padX), padY + o.y * (H - 2 * padY)];
  };
- var prog=Math.min(1,(now-lastChange)/(650/speed)),ease=1-Math.pow(1-prog,3);
+
+ var elapsed = now - lastChange;
+ var dur = 750 / speed;
+ var rawProg = Math.min(1, elapsed / dur);
+ var ease = 1 - Math.pow(1 - rawProg, 3);
 
  // 1. Draw static topology edges
- ctx.lineWidth=1;ctx.strokeStyle=C("--edge");
- trace.edges.forEach(function(e){var a=P(e[0]),b=P(e[1]);ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()});
+ ctx.lineWidth = 1;
+ ctx.strokeStyle = C("--edge");
+ trace.edges.forEach(function(e){
+  var a = P(e[0]), b = P(e[1]);
+  ctx.beginPath();
+  ctx.moveTo(a[0], a[1]);
+  ctx.lineTo(b[0], b[1]);
+  ctx.stroke();
+ });
 
- // 2. Draw continuous packet trails and animated heads
+ // Count occupancy per node and per edge so overlapping points never collide
+ var nodeCount = {}, nodeOrder = {};
+ var edgeCount = {}, edgeOrder = {};
+
  for(var k in S){
-  var o=S[k];
-  if(!o.path || o.path.length===0) continue;
+  var o = S[k];
+  if(o.status === "live"){
+   var nid = o.at;
+   nodeCount[nid] = (nodeCount[nid] || 0) + 1;
 
-  var isHovered=(hoveredPacket===o.id);
-  var isLive=(o.status==="live");
-  var isLatest=(o.idx===step-1);
+   var isHop = (o.activeFrame === frameIdx - 1 && o.from != null);
+   if(isHop){
+    var ekey = Math.min(o.from, o.to) + "_" + Math.max(o.from, o.to);
+    edgeCount[ekey] = (edgeCount[ekey] || 0) + 1;
+   }
+  }
+ }
 
-  // Compute animated leading position if this packet moved in current step
-  var to=P(o.at), pos=to;
-  var isAnimating=(o.idx===step-1 && o.from!=null && isLive);
-  if(isAnimating){
-   var fr=P(o.from);
-   pos=[fr[0]+(to[0]-fr[0])*ease, fr[1]+(to[1]-fr[1])*ease];
+ // 2. Draw continuous packet trails with forward-moving unhighlighting beams
+ for(var k in S){
+  var o = S[k];
+  if(!o.path || o.path.length === 0) continue;
+
+  var isHovered = (hoveredPacket === o.id);
+  var isLive = (o.status === "live");
+  var isCurrentFrame = (o.activeFrame === frameIdx - 1);
+  var isHop = (isCurrentFrame && o.from != null && isLive);
+
+  var to = P(o.at), pos = to;
+  var col = getPacketColor(o.id, isHovered ? 1.0 : (isLive ? 0.9 : 0.22));
+
+  // Forward-Moving Beam Mechanics:
+  // Head moves from source to target; Tail smoothly follows and moves forward
+  // rather than abruptly blipping out when unhighlighting!
+  if(isHop){
+   var fr = P(o.from);
+   var ekey = Math.min(o.from, o.to) + "_" + Math.max(o.from, o.to);
+   var eIdx = (edgeOrder[ekey] = (edgeOrder[ekey] || 0) + 1);
+   var eTotal = edgeCount[ekey] || 1;
+
+   // Lane offset so simultaneous packets on the same edge don't overlap
+   var edx = to[0] - fr[0], edy = to[1] - fr[1];
+   var elen = Math.hypot(edx, edy) || 1;
+   var perpX = -edy / elen, perpY = edx / elen;
+   var laneOffset = (eIdx - (eTotal + 1) / 2) * 8;
+
+   // Head position (0 to 1)
+   var headT = Math.min(1, ease * 1.25);
+   // Tail position follows forward (0 to 1) so it sweeps forward as it unhighlights!
+   var tailT = Math.max(0, (ease - 0.28) * 1.38);
+
+   var headPos = [
+    fr[0] + (to[0] - fr[0]) * headT + perpX * laneOffset,
+    fr[1] + (to[1] - fr[1]) * headT + perpY * laneOffset
+   ];
+   var tailPos = [
+    fr[0] + (to[0] - fr[0]) * tailT + perpX * laneOffset,
+    fr[1] + (to[1] - fr[1]) * tailT + perpY * laneOffset
+   ];
+
+   pos = headPos;
+
+   // Draw dynamic forward-gliding unhighlighting beam
+   ctx.beginPath();
+   ctx.strokeStyle = col;
+   ctx.lineWidth = isHovered ? 3.5 : 2.5;
+   ctx.lineCap = "round";
+   ctx.moveTo(tailPos[0], tailPos[1]);
+   ctx.lineTo(headPos[0], headPos[1]);
+   ctx.stroke();
+
+  } else {
+   // Packet is resting at node: apply non-overlapping radial orbit if multiple packets share node
+   var nTotal = nodeCount[o.at] || 1;
+   var nIdx = (nodeOrder[o.at] = (nodeOrder[o.at] || 0) + 1);
+   if(nTotal > 1){
+    var ang = (2 * Math.PI * (nIdx - 1)) / nTotal - Math.PI / 2;
+    var rad = Math.min(22, 11 + nTotal * 1.8);
+    pos = [to[0] + Math.cos(ang) * rad, to[1] + Math.sin(ang) * rad];
+   }
   }
 
-  // Opacity & line width: prominent for live & hovered packets, elegant ghost for finished
-  var alpha = isHovered ? 1.0 : (isLive ? 0.85 : (isLatest ? 0.6 : 0.22));
-  var col = getPacketColor(o.id, alpha);
-  var lw = isHovered ? 3.5 : (isLive ? 2.5 : 1.5);
-
-  // Draw continuous polyline from source node through traversed path to current position
-  if(o.path.length > 1 || isAnimating){
-   ctx.strokeStyle = col;
-   ctx.lineWidth = lw;
-   ctx.lineCap = "round";
-   ctx.lineJoin = "round";
+  // Draw full continuous path history (faint trail showing complete route)
+  if(o.path.length > 1){
+   ctx.strokeStyle = getPacketColor(o.id, isHovered ? 0.7 : (isLive ? 0.35 : 0.18));
+   ctx.lineWidth = isHovered ? 2.5 : 1.5;
    ctx.beginPath();
-
    var startPt = P(o.path[0]);
    ctx.moveTo(startPt[0], startPt[1]);
-
-   var limit = isAnimating ? (o.path.length - 1) : o.path.length;
-   for(var pi=1; pi<limit; pi++){
+   for(var pi = 1; pi < o.path.length; pi++){
     var pt = P(o.path[pi]);
     ctx.lineTo(pt[0], pt[1]);
-   }
-   if(isAnimating){
-    ctx.lineTo(pos[0], pos[1]);
    }
    ctx.stroke();
   }
 
-  // Draw leading packet dot if live
+  // Draw leading packet particle and badge label
   if(isLive){
-   // Halo glow
+   // Soft glow halo
    ctx.beginPath();
    ctx.arc(pos[0], pos[1], 7, 0, Math.PI * 2);
    ctx.fillStyle = getPacketColor(o.id, 0.22);
@@ -444,26 +723,55 @@ function frame(now){
    ctx.fillStyle = getPacketColor(o.id, 1.0);
    ctx.fill();
 
-   // Badge tag above packet
+   // Centered badge tag above particle
    ctx.font = '10px "Schibsted Grotesk",system-ui,sans-serif';
-   ctx.fillStyle = getPacketColor(o.id, isHovered ? 1.0 : 0.85);
+   ctx.fillStyle = getPacketColor(o.id, isHovered ? 1.0 : 0.88);
    ctx.textAlign = "center";
    ctx.fillText("P" + o.id, pos[0], pos[1] - 8);
   }
  }
 
- // 3. Draw nodes
- ctx.font='12px "Schibsted Grotesk",system-ui,sans-serif';ctx.textAlign="center";
- trace.nodes.forEach(function(o,i){var p=P(i);
-  ctx.beginPath();ctx.arc(p[0],p[1],5,0,7);ctx.fillStyle=C("--bg");ctx.fill();ctx.lineWidth=1.25;ctx.strokeStyle=C("--ink");ctx.stroke();
-  ctx.fillStyle=C("--mute");ctx.fillText(nm(i),p[0],p[1]-14)});
+ // 3. Draw nodes (centered, cleanly spaced)
+ ctx.font = '12px "Schibsted Grotesk",system-ui,sans-serif';
+ ctx.textAlign = "center";
+ trace.nodes.forEach(function(o, i){
+  var p = P(i);
+  ctx.beginPath();
+  ctx.arc(p[0], p[1], 5, 0, 7);
+  ctx.fillStyle = C("--bg");
+  ctx.fill();
+  ctx.lineWidth = 1.25;
+  ctx.strokeStyle = C("--ink");
+  ctx.stroke();
 
- // 4. Pulse rings on delivery or cross marks on drop
- var last=step?trace.events[step-1]:null;
- if(last&&(last.type==="deliver"||last.type==="drop")&&last.node!=null){
-  var p=P(last.node),colRing=C(last.type==="deliver"?"--acc":"--bad");ctx.strokeStyle=colRing;ctx.lineWidth=1.5;
-  if(last.type==="deliver"){ctx.globalAlpha=1-ease*.6;ctx.beginPath();ctx.arc(p[0],p[1],8+ease*8,0,7);ctx.stroke();ctx.globalAlpha=1}
-  else{ctx.beginPath();ctx.moveTo(p[0]-6,p[1]-6);ctx.lineTo(p[0]+6,p[1]+6);ctx.moveTo(p[0]+6,p[1]-6);ctx.lineTo(p[0]-6,p[1]+6);ctx.stroke()}}
+  ctx.fillStyle = C("--mute");
+  ctx.fillText(nm(i), p[0], p[1] - 12);
+ });
+
+ // 4. Pulse rings on delivery or cross marks on drop for all events in current frame
+ if(frameIdx > 0 && trace.timeFrames[frameIdx - 1]){
+  var curFr = trace.timeFrames[frameIdx - 1];
+  curFr.delivers.forEach(function(ev){
+   var p = P(ev.node);
+   ctx.strokeStyle = C("--good");
+   ctx.lineWidth = 1.6;
+   ctx.globalAlpha = Math.max(0, 1 - ease * 0.7);
+   ctx.beginPath();
+   ctx.arc(p[0], p[1], 8 + ease * 12, 0, 7);
+   ctx.stroke();
+   ctx.globalAlpha = 1;
+  });
+
+  curFr.drops.forEach(function(ev){
+   var p = P(ev.node);
+   ctx.strokeStyle = C("--bad");
+   ctx.lineWidth = 1.6;
+   ctx.beginPath();
+   ctx.moveTo(p[0] - 6, p[1] - 6); ctx.lineTo(p[0] + 6, p[1] + 6);
+   ctx.moveTo(p[0] + 6, p[1] - 6); ctx.lineTo(p[0] - 6, p[1] + 6);
+   ctx.stroke();
+  });
+ }
 }
 requestAnimationFrame(frame);
 </script>
