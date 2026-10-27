@@ -1,5 +1,7 @@
 import datetime
 import inspect
+import json
+import os
 from enum import Enum
 
 class LogType(Enum):
@@ -10,6 +12,18 @@ class LogType(Enum):
     CRITICAL="CRITICAL"
 
 
+TRACE_LOG = "trace.json"
+
+
+def emit_trace_event(event_dict, mode="a"):
+    """Appends or writes a structured JSON trace event line to trace.json."""
+    try:
+        with open(TRACE_LOG, mode, encoding="utf-8") as f:
+            f.write(json.dumps(event_dict) + "\n")
+    except Exception as e:
+        pass
+
+
 def log(message,log_type=LogType.INFO,status="Success",
         general_logfile_path="app.log",print_log=False):
     if not isinstance(log_type,LogType):
@@ -18,7 +32,6 @@ def log(message,log_type=LogType.INFO,status="Success",
     timestamp=datetime.datetime.now().isoformat(timespec="milliseconds")
     frame=inspect.currentframe()
     caller=frame.f_back.f_code.co_name
-
     log_entry=f"{timestamp} {log_type.value} {caller} {status} {message}"
 
     if print_log:
@@ -39,6 +52,26 @@ def graph_generated(network):
         general_logfile_path=NETWORK_LOG
     )
 
+    # Extract edge topology [A, B] for the visualizer
+    edges = []
+    if hasattr(network, "edge_list"):
+        for e in network.edge_list:
+            A = getattr(e, "A", -1)
+            B = getattr(e, "B", -1)
+            if A != -1 and B != -1:
+                edges.append([A, B])
+
+    nodes_count = getattr(network, "nodes", 0)
+    nodes = [{"id": i} for i in range(nodes_count)]
+
+    # Reset trace.json on new graph generation
+    emit_trace_event({
+        "type": "GRAPH_INIT",
+        "t": getattr(network, "time", 0),
+        "nodes": nodes,
+        "edges": edges
+    }, mode="w")
+
 
 def traffic_generated(network,source,destination,packets):
     log(
@@ -46,6 +79,13 @@ def traffic_generated(network,source,destination,packets):
         f"packets={packets}, t={network.time}",
         general_logfile_path=NETWORK_LOG
     )
+    emit_trace_event({
+        "type": "traffic",
+        "source": source,
+        "destination": destination,
+        "packets": packets,
+        "t": getattr(network, "time", 0)
+    })
 
 
 def node_added(node_id):
@@ -53,6 +93,10 @@ def node_added(node_id):
         f"Node {node_id} added",
         general_logfile_path=NETWORK_LOG
     )
+    emit_trace_event({
+        "type": "node_add",
+        "node": node_id
+    })
 
 
 def edge_added(edge_id,A,B):
@@ -60,6 +104,12 @@ def edge_added(edge_id,A,B):
         f"Edge {edge_id} added: {A} <-> {B}",
         general_logfile_path=NETWORK_LOG
     )
+    emit_trace_event({
+        "type": "edge_add",
+        "id": edge_id,
+        "from": A,
+        "to": B
+    })
 
 
 def simulation_error(message):
@@ -69,6 +119,10 @@ def simulation_error(message):
         status="Failure",
         general_logfile_path=NETWORK_LOG
     )
+    emit_trace_event({
+        "type": "error",
+        "message": message
+    })
 
 # Packets:
 
@@ -82,6 +136,14 @@ def packet_created(packet):
         f"size={packet.size}, ttl={packet.ttl}",
         general_logfile_path=PACKET_LOG
     )
+    emit_trace_event({
+        "type": "spawn",
+        "p": getattr(packet, "id", None),
+        "node": getattr(packet, "start_loc", None),
+        "size": getattr(packet, "size", 0),
+        "ttl": getattr(packet, "ttl", 50),
+        "t": packet.history_time[0] if getattr(packet, "history_time", None) else 0
+    })
 
 
 def packet_moved(packet,previous_node,current_node,time):
@@ -90,6 +152,13 @@ def packet_moved(packet,previous_node,current_node,time):
         f"{previous_node} -> {current_node} at t={time}",
         general_logfile_path=PACKET_LOG
     )
+    emit_trace_event({
+        "type": "hop",
+        "p": getattr(packet, "id", None),
+        "from": previous_node,
+        "to": current_node,
+        "t": time
+    })
 
 
 def packet_delivered(packet,time):
@@ -97,6 +166,12 @@ def packet_delivered(packet,time):
         f"Packet {packet.id} delivered to {packet.end_loc} at t={time}",
         general_logfile_path=PACKET_LOG
     )
+    emit_trace_event({
+        "type": "deliver",
+        "p": getattr(packet, "id", None),
+        "node": getattr(packet, "end_loc", None),
+        "t": time
+    })
 
 
 def packet_dropped(packet,reason,time=None):
@@ -106,6 +181,14 @@ def packet_dropped(packet,reason,time=None):
         status="Failure",
         general_logfile_path=PACKET_LOG
     )
+    node = packet.history_loc[-1] if getattr(packet, "history_loc", None) else None
+    emit_trace_event({
+        "type": "drop",
+        "p": getattr(packet, "id", None),
+        "node": node,
+        "reason": str(reason),
+        "t": time if time is not None else 0
+    })
 
 
 def packet_loop(packet,node,time=None):
@@ -115,3 +198,9 @@ def packet_loop(packet,node,time=None):
         status="Failure",
         general_logfile_path=PACKET_LOG
     )
+    emit_trace_event({
+        "type": "loop",
+        "p": getattr(packet, "id", None),
+        "node": node,
+        "t": time if time is not None else 0
+    })
