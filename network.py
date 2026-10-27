@@ -128,7 +128,7 @@ class Network:
         else:   # if it is part of a generated traffic then continue the traffic 
             A = self.packet_list[packet[1]].start_loc
             B = self.packet_list[packet[1]].end_loc
-            if self.traffic[B][A] <= 0:
+            if self.traffic[B][A] > 0:
                 self.traffic[B][A] -= 1
                 self.generate_packet(B, A, self.packet_list[packet[1]].size)
         

@@ -2,7 +2,7 @@ import random
 import heapq
 import logger
 
-from bots import Greedy
+from bots import Greedy, Bot
 '''
 Information on Every edge connected to it
 Nodes connected to it
@@ -18,7 +18,7 @@ class Node:
         self.proc_time = PROC_TIME
         self.neighbours = {}
 
-        self.policy = Greedy(id)
+        self.policy = Bot(id)
 
     def add_edge(self, B, edge):
         self.neighbours[B] = edge
@@ -28,11 +28,13 @@ class Node:
 
         history_loc = packet.history_loc
 
+        # 1. Target reached: mark delivered and trigger delayed trajectory reward
         if packet.end_loc == self.id:
             packet.reached(time)
-            # Calculate and return a reward
+            Bot.reward_trajectory(packet, status="reached")
             return
 
+        # 2. Loop detection: discard packet immediately and penalize trajectory
         temp = 2
         for loc in history_loc:
             if(loc == self.id):
@@ -41,13 +43,17 @@ class Node:
         if temp <= 0:
             logger.packet_loop(packet, self.id, time)
             packet.dropped("Routing loop", time)
-            # add a penalty for the loop
+            Bot.reward_trajectory(packet, status="loop")
             return
 
-        # call to the RL
-        destination = self.policy.run()
-        new_time = self.neighbours[destination].send_packet(packet, time)
+        # 3. Call to the RL policy
+        destination = self.policy.run(packet)
+        if destination == -1 or destination not in self.neighbours:
+            packet.dropped("No valid outgoing edge", time)
+            Bot.reward_trajectory(packet, status="dead")
+            return
 
+        new_time = self.neighbours[destination].send_packet(packet, time)
         packet.sent(destination, new_time)
         return
 
