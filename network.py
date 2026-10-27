@@ -13,8 +13,10 @@ Size_end = 100
 
 
 
+from bots import DijkstraBot, MinHopBot
+
 class Network:
-    def __init__(self, nodes = 0, edges = 0):
+    def __init__(self, nodes = 0, edges = 0, policy = "rl"):
         
         if nodes == 0:
             nodes = random.randint(Node_init, Node_end)
@@ -23,6 +25,7 @@ class Network:
 
         self.nodes = nodes
         self.edges = edges
+        self.policy = policy
         self.traffic_count = 0
         self.generate_graph()
         self.packet_count = 0
@@ -33,12 +36,14 @@ class Network:
         self.time = 0
 
     def generate_graph(self):
+        DijkstraBot.clear_topology()
+        MinHopBot.clear_topology()
         self.network = [[-1 for _ in range(self.nodes)] for _ in range(self.nodes)]
         self.traffic = [[-1 for _ in range(self.nodes)] for _ in range(self.nodes)]
         self.node_list = []
         self.edge_list = []
         for _ in range(self.nodes):
-            self.node_list.append(Node(_))
+            self.node_list.append(Node(_, policy=self.policy))
         for _ in range(self.edges):
             A = -1
             B = -1
@@ -70,7 +75,7 @@ class Network:
             self.network[_].append(-1)
             self.traffic[_].append(-1)
         self.nodes += 1
-        self.node_list.append(Node(self.nodes-1))
+        self.node_list.append(Node(self.nodes-1, policy=self.policy))
         self.network.append([-1 for _ in range(self.nodes)])
         self.traffic.append([-1 for _ in range(self.nodes)])
         logger.node_added(self.nodes - 1)

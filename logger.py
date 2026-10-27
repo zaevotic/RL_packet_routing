@@ -13,30 +13,24 @@ class LogType(Enum):
 
 
 TRACE_LOG = "trace.json"
-TRACE_JS = "trace.js"
+ENABLE_TRACE = True
 
 
 def emit_trace_event(event_dict, mode="a"):
-    """Appends or writes a structured JSON trace event line to trace.json and trace.js."""
+    """Appends or writes a structured JSON trace event line to trace.json."""
+    if not ENABLE_TRACE:
+        return
     try:
         with open(TRACE_LOG, mode, encoding="utf-8") as f:
             f.write(json.dumps(event_dict) + "\n")
     except Exception as e:
         pass
 
-    try:
-        with open(TRACE_JS, mode, encoding="utf-8") as f:
-            line = json.dumps(event_dict)
-            if mode == "w":
-                f.write(f"window.__TRACE_DATA__ = [{line}];\n")
-            else:
-                f.write(f"if(window.__TRACE_DATA__) window.__TRACE_DATA__.push({line});\n")
-    except Exception as e:
-        pass
-
 
 def log(message,log_type=LogType.INFO,status="Success",
         general_logfile_path="app.log",print_log=False):
+    if not ENABLE_TRACE:
+        return
     if not isinstance(log_type,LogType):
         raise ValueError("log_type must be a LogType")
 

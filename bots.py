@@ -17,7 +17,16 @@ PENALTY_PER_HOP = -1.5
 PENALTY_PER_TIME = -0.1
 
 
+import heapq
+from collections import deque
+
+
 class Greedy:
+    """
+    Greedy Routing Bot:
+    Routes packets toward the neighbor with the fastest outgoing link (highest speed).
+    If destination is directly adjacent, routes directly.
+    """
     def __init__(self, id):
         self.neighbours = {}
         self.id = id
@@ -26,20 +35,232 @@ class Greedy:
         self.neighbours[B] = edge
 
     def run(self, packet=None):
-        best = 0
-        edge = -1
-        for x, y in self.neighbours.items():
-            if y.speed > best:
-                best = y.speed
-                edge = y.other_end(self.id)
-        if edge == -1 and self.neighbours:
-            edge = random.choice(list(self.neighbours.keys()))
-        return edge
+        if not self.neighbours:
+            return -1
+
+        if packet is not None and getattr(packet, "end_loc", None) in self.neighbours:
+            return packet.end_loc
+
+        best = -1
+        best_candidates = []
+        for neighbor_id, edge in self.neighbours.items():
+            speed = getattr(edge, "speed", 0)
+            if speed > best:
+                best = speed
+                best_candidates = [neighbor_id]
+            elif speed == best:
+                best_candidates.append(neighbor_id)
+
+        if best_candidates:
+            return random.choice(best_candidates)
+
+        return random.choice(list(self.neighbours.keys()))
 
 
-class Bot:
+GreedyBot = Greedy
+
+
+class DijkstraBot:
     """
-    Tabular Q-Learning Bot for Packet Routing.
+    Link-State Shortest Path Bot using Dijkstra's Algorithm.
+    Computes optimal path based on link latency/cost (inversely proportional to link speed).
+    """
+    topology = {}
+
+    @classmethod
+    def register_link(cls, u, v, edge):
+        if u not in cls.topology:
+            cls.topology[u] = {}
+        cls.topology[u][v] = edge
+
+    @classmethod
+    def clear_topology(cls):
+        cls.topology.clear()
+
+    def __init__(self, id):
+        self.id = id
+        self.neighbours = {}
+
+    def add_neighbor(self, B, edge):
+        self.neighbours[B] = edge
+        DijkstraBot.register_link(self.id, B, edge)
+        DijkstraBot.register_link(B, self.id, edge)
+
+    def run(self, packet):
+        dst = getattr(packet, "end_loc", None)
+        if not self.neighbours or dst is None:
+            return -1
+
+        # Direct link is preferred immediately if adjacent
+        if dst in self.neighbours:
+            return dst
+
+        # Dijkstra algorithm from self.id to dst
+        dist = {self.id: 0.0}
+        prev = {}
+        pq = [(0.0, self.id)]
+
+        while pq:
+            d, u = heapq.heappop(pq)
+            if u == dst:
+                break
+            if d > dist.get(u, float("inf")):
+                continue
+
+            for v, edge in self.topology.get(u, {}).items():
+                weight = 10.0 / max(1, getattr(edge, "speed", 1))
+                new_d = d + weight
+                if new_d < dist.get(v, float("inf")):
+                    dist[v] = new_d
+                    prev[v] = u
+                    heapq.heappush(pq, (new_d, v))
+
+        if dst not in prev:
+            return random.choice(list(self.neighbours.keys()))
+
+        # Trace back to find first hop from self.id
+        curr = dst
+        while prev.get(curr) != self.id:
+            curr = prev.get(curr)
+            if curr is None:
+                return random.choice(list(self.neighbours.keys()))
+
+        return curr
+
+
+class MinHopBot:
+    """
+    Breadth-First Search (BFS) Shortest Path Bot.
+    Guarantees minimum hop count to destination.
+    """
+    topology = {}
+
+    @classmethod
+    def register_link(cls, u, v, edge):
+        if u not in cls.topology:
+            cls.topology[u] = {}
+        cls.topology[u][v] = edge
+
+    @classmethod
+    def clear_topology(cls):
+        cls.topology.clear()
+
+    def __init__(self, id):
+        self.id = id
+        self.neighbours = {}
+
+    def add_neighbor(self, B, edge):
+        self.neighbours[B] = edge
+        MinHopBot.register_link(self.id, B, edge)
+        MinHopBot.register_link(B, self.id, edge)
+
+    def run(self, packet):
+        dst = getattr(packet, "end_loc", None)
+        if not self.neighbours or dst is None:
+            return -1
+
+        if dst in self.neighbours:
+            return dst
+
+        queue = deque([self.id])
+        prev = {}
+        visited = {self.id}
+
+        while queue:
+            u = queue.popleft()
+            if u == dst:
+                break
+            for v in self.topology.get(u, {}):
+                if v not in visited:
+                    visited.add(v)
+                    prev[v] = u
+                    queue.append(v)
+
+        if dst not in prev:
+            return random.choice(list(self.neighbours.keys()))
+
+        curr = dst
+        while prev.get(curr) != self.id:
+            curr = prev.get(curr)
+            if curr is None:
+                return random.choice(list(self.neighbours.keys()))
+
+        return curr
+
+
+class RandomBot:
+    """
+    Random Walk Bot:
+    Selects random outgoing edge, prioritizing direct connection to destination
+    and avoiding immediately bouncing back to previous hop when alternatives exist.
+    """
+    def __init__(self, id):
+        self.id = id
+        self.neighbours = {}
+
+    def add_neighbor(self, B, edge):
+        self.neighbours[B] = edge
+
+    def run(self, packet):
+        if not self.neighbours:
+            return -1
+
+        dst = getattr(packet, "end_loc", None)
+        if dst in self.neighbours:
+            return dst
+
+        candidates = list(self.neighbours.keys())
+        history = getattr(packet, "history_loc", [])
+        if len(history) >= 2:
+            prev_node = history[-2]
+            alternatives = [c for c in candidates if c != prev_node]
+            if alternatives:
+                candidates = alternatives
+
+        return random.choice(candidates)
+
+
+class LeastCongestedBot:
+    """
+    Congestion-Aware / Load-Balancing Bot:
+    Routes packets toward the neighbor whose connecting edge has the lowest queue capacity ratio.
+    """
+    def __init__(self, id):
+        self.id = id
+        self.neighbours = {}
+
+    def add_neighbor(self, B, edge):
+        self.neighbours[B] = edge
+
+    def run(self, packet):
+        if not self.neighbours:
+            return -1
+
+        dst = getattr(packet, "end_loc", None)
+        if dst in self.neighbours:
+            return dst
+
+        best_score = float("inf")
+        best_nodes = []
+
+        for v, edge in self.neighbours.items():
+            cap = getattr(edge, "capacity", 0)
+            bw = getattr(edge, "bandwidth", 1)
+            load = cap / max(1, bw)
+            if load < best_score:
+                best_score = load
+                best_nodes = [v]
+            elif load == best_score:
+                best_nodes.append(v)
+
+        if best_nodes:
+            return random.choice(best_nodes)
+        return random.choice(list(self.neighbours.keys()))
+
+
+class RLcraft:
+    """
+    RLcraft: Tabular Q-Learning Bot for Packet Routing.
     Q-Matrix: Destination x Outgoing Neighbor Edge/Node.
     Persisted to Data/Bots/node_{id}.json to conserve memory and preserve learning.
     """
@@ -54,7 +275,7 @@ class Bot:
 
         self.file_path = DATA_DIR / f"node_{self.id}.json"
         self.q_table = self.load()
-        Bot.instances[self.id] = self
+        RLcraft.instances[self.id] = self
 
     def add_neighbor(self, B, edge):
         self.neighbours[B] = edge
@@ -156,3 +377,69 @@ class Bot:
             if bot is not None:
                 bot.learn(dst, node_v, g_i)
                 bot.save()
+
+
+Bot = RLcraft
+
+
+# Registry of available routing algorithms / bots
+BOT_REGISTRY = {
+    "rl": RLcraft,
+    "rlcraft": RLcraft,
+    "q_learning": RLcraft,
+    "dijkstra": DijkstraBot,
+    "shortest_path": DijkstraBot,
+    "min_hop": MinHopBot,
+    "bfs": MinHopBot,
+    "greedy": Greedy,
+    "greedy_bot": Greedy,
+    "random": RandomBot,
+    "random_walk": RandomBot,
+    "least_congested": LeastCongestedBot,
+}
+
+BOT_CATALOG = [
+    {
+        "id": "rlcraft",
+        "name": "RLcraft (Tabular Q)",
+        "class": RLcraft,
+        "description": "Reinforcement Learning agent using delayed-trajectory Q-learning and persistence.",
+    },
+    {
+        "id": "dijkstra",
+        "name": "Dijkstra (Shortest Path)",
+        "class": DijkstraBot,
+        "description": "Link-State algorithm minimizing latency/speed-weighted path cost.",
+    },
+    {
+        "id": "min_hop",
+        "name": "Min-Hop (BFS)",
+        "class": MinHopBot,
+        "description": "Breadth-First Search guaranteeing minimal intermediate hops.",
+    },
+    {
+        "id": "greedy",
+        "name": "Greedy Bot",
+        "class": Greedy,
+        "description": "Heuristic picking the highest available link speed.",
+    },
+    {
+        "id": "random",
+        "name": "Random Walk",
+        "class": RandomBot,
+        "description": "Stochastic random forwarding baseline with 2-hop bounce suppression.",
+    },
+    {
+        "id": "least_congested",
+        "name": "Least Congested",
+        "class": LeastCongestedBot,
+        "description": "Congestion-aware load balancer choosing minimum queue/capacity ratio.",
+    },
+]
+
+
+def get_bot_class(name):
+    if isinstance(name, type):
+        return name
+    key = str(name).strip().lower().replace("-", "_").replace(" ", "_")
+    return BOT_REGISTRY.get(key, RLcraft)

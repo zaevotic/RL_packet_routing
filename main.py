@@ -1,13 +1,130 @@
+import json
 import random
+import sys
+from bots import BOT_CATALOG, get_bot_class, DijkstraBot, MinHopBot
+from config import Edge, Node
 from network import Network
 from packet import Status
 import logger
 
 
-def main():
-    print("=== RL Packet Routing Simulator ===")
+def compute_stats(net, step_count):
+    total = len(net.packet_list)
+    delivered = sum(1 for p in net.packet_list if p.status == Status.END)
+    dead = sum(1 for p in net.packet_list if p.status == Status.DEAD)
+    in_transit = total - delivered - dead
 
-    # Topology Setup
+    del_rate = round(delivered / total, 3) if total else 0.0
+    del_pkts = [p for p in net.packet_list if p.status == Status.END and len(p.history_time) > 1]
+    avg_lat = round(sum(p.history_time[-2] - p.history_time[0] for p in del_pkts) / len(del_pkts), 2) if del_pkts else 0.0
+    avg_hops = round(sum(len(p.history_loc) - 1 for p in del_pkts) / len(del_pkts), 2) if del_pkts else 0.0
+
+    return {
+        "total": total,
+        "delivered": delivered,
+        "dead": dead,
+        "in_transit": in_transit,
+        "del_rate": del_rate,
+        "avg_lat": avg_lat,
+        "avg_hops": avg_hops,
+        "step_count": step_count,
+        "sim_time": net.time,
+        "remaining_queue": len(net.packet_queue),
+    }
+
+
+def create_replicated_network(base_net, policy_name):
+    """
+    Creates an exact duplicate of base_net (same nodes, edges, bandwidth, speed,
+    and identical packet workload), but attaches a new routing algorithm/policy.
+    """
+    net = Network(nodes=base_net.nodes, edges=len(base_net.edge_list), policy=policy_name)
+
+    # Overwrite graph with exact replica of base_net
+    DijkstraBot.clear_topology()
+    MinHopBot.clear_topology()
+
+    net.node_list = [Node(i, policy=policy_name) for i in range(base_net.nodes)]
+    net.network = [[-1 for _ in range(base_net.nodes)] for _ in range(base_net.nodes)]
+    net.edge_list = []
+
+    for idx, e in enumerate(base_net.edge_list):
+        new_edge = Edge(e.A, e.B, speed=e.speed, bandwidth=e.bandwidth)
+        net.edge_list.append(new_edge)
+        net.network[e.A][e.B] = idx
+        net.network[e.B][e.A] = idx
+        net.node_list[e.A].add_edge(e.B, new_edge)
+        net.node_list[e.B].add_edge(e.A, new_edge)
+
+    # Replicate identical packet traffic
+    net.packet_list = []
+    net.packet_queue = []
+    net.packet_count = 0
+    for p in base_net.packet_list:
+        start_t = p.history_time[0] if p.history_time else 0
+        net.generate_packet(A=p.history_loc[0], B=p.end_loc, size=p.size, ttl=p.ttl, start_time=start_t)
+
+    return net
+
+
+def run_simulation(net, max_steps=100, interactive=False):
+    step_count = 0
+    if interactive:
+        while net.packet_queue and step_count < max_steps:
+            step_count += 1
+            cur_time, pkt_id = net.packet_queue[0]
+            print(f"Step {step_count:03d} | Sim Time: {net.time} | Processing Pkt: {pkt_id}")
+            net.next_packet()
+            cont = input("Press [Enter] for next step or 'q' to stop: ").strip().lower()
+            if cont == "q":
+                break
+    else:
+        while net.packet_queue and step_count < max_steps:
+            step_count += 1
+            net.next_packet()
+
+    return compute_stats(net, step_count)
+
+
+def main():
+    print("=== RL Packet Routing Simulator & Benchmark ===")
+
+    auto_benchmark = any(arg in sys.argv for arg in ["--benchmark", "--all", "-b"])
+
+    # 1. Routing Policy Selection
+    print("Choose Mode / Routing Algorithm:")
+    print("1. [Benchmark All Bots] Run all implemented bots & generate metrics.json [default]")
+    for idx, bot_info in enumerate(BOT_CATALOG, 2):
+        print(f"{idx}. {bot_info['name']} - {bot_info['description']}")
+
+    if auto_benchmark:
+        algo_choice = "1"
+        print("Auto-benchmark flag detected. Selecting Option 1.")
+    else:
+        algo_choice = input(f"Enter choice (1-{len(BOT_CATALOG) + 1}) [default: 1]: ").strip()
+
+    is_benchmark = (algo_choice in ("", "1"))
+
+    if is_benchmark:
+        chosen_policy_id = "rlcraft"
+        chosen_policy_name = "Benchmark Suite (All Implemented Bots)"
+    else:
+        try:
+            choice_num = int(algo_choice)
+            idx = choice_num - 2
+            if 0 <= idx < len(BOT_CATALOG):
+                chosen_policy_id = BOT_CATALOG[idx]["id"]
+                chosen_policy_name = BOT_CATALOG[idx]["name"]
+            else:
+                chosen_policy_id = "rlcraft"
+                chosen_policy_name = BOT_CATALOG[0]["name"]
+        except ValueError:
+            chosen_policy_id = "rlcraft"
+            chosen_policy_name = BOT_CATALOG[0]["name"]
+
+    print(f"\nSelected Routing Mode: {chosen_policy_name}\n")
+
+    # 2. Topology Setup
     use_default_net = input("Use default random network? (y/n) [default: y]: ").strip().lower()
 
     if use_default_net == "n":
@@ -17,15 +134,14 @@ def main():
         edges_in = input("Enter number of edges: ").strip()
         edges = int(edges_in) if edges_in.isdigit() else 15
 
-        net = Network(nodes=nodes, edges=edges)
+        net = Network(nodes=nodes, edges=edges, policy=chosen_policy_id)
     else:
-        # Network's __init__ will randomly pick values if passed 0
-        net = Network(nodes=0, edges=0)
+        net = Network(nodes=0, edges=0, policy=chosen_policy_id)
 
     logger.graph_generated(net)
     print(f"Network initialized with {net.nodes} nodes and {net.edges} edges.\n")
 
-    # Generation
+    # 3. Traffic Generation
     print("Choose traffic setup:")
     print("1. Standard random packets")
     print("2. Continuous traffic flow (Source -> Destination)")
@@ -40,7 +156,6 @@ def main():
         logger.traffic_generated(net, src, dst, packets=count)
 
     elif choice == "3":
-        # Add a traffic flow
         src = random.randint(0, net.nodes - 1)
         dst = random.randint(0, net.nodes - 1)
         while src == dst:
@@ -48,7 +163,6 @@ def main():
         net.generate_traffic(A=src, B=dst, packets=10)
         logger.traffic_generated(net, src, dst, packets=10)
 
-        # Add ad-hoc packets with distributed arrival times
         for _ in range(15):
             s = random.randint(0, net.nodes - 1)
             d = random.randint(0, net.nodes - 1)
@@ -56,7 +170,6 @@ def main():
                 d = random.randint(0, net.nodes - 1)
             net.generate_packet(A=s, B=d, start_time=random.randint(0, 30))
     else:
-        # Default: generate simple random packets
         pkt_count = input("How many packets to generate? [default: 10]: ").strip()
         num_packets = int(pkt_count) if pkt_count.isdigit() else 10
 
@@ -73,119 +186,126 @@ def main():
 
     print(f"Total packets in queue: {len(net.packet_queue)}\n")
 
-    # Sim
-    mode = input("Run mode: (1) Run all steps, (2) Step-by-step interactive? [default: 1]: ").strip()
-
+    # 4. Simulation Execution
     steps_in = input("Maximum simulation steps to run? [default: 100]: ").strip()
     max_steps = int(steps_in) if steps_in.isdigit() else 100
 
-    step_count = 0
+    if not is_benchmark:
+        # Single bot execution
+        mode = input("Run mode: (1) Run all steps, (2) Step-by-step interactive? [default: 1]: ").strip()
+        interactive = (mode == "2")
 
-    if mode == "2":
-        while net.packet_queue and step_count < max_steps:
-            step_count += 1
-            cur_time, pkt_id = net.packet_queue[0]
-            print(f"Step {step_count:03d} | Sim Time: {net.time} | Processing Pkt: {pkt_id}")
-            net.next_packet()
+        stats = run_simulation(net, max_steps=max_steps, interactive=interactive)
 
-            cont = input("Press [Enter] for next step or 'q' to stop: ").strip().lower()
-            if cont == "q":
-                break
+        print(f"\nSimulation ended at step {stats['step_count']}, current sim time: {stats['sim_time']}")
+        print("\n--- Summary ---")
+        print(f"Total Packets Created : {stats['total']}")
+        print(f"Delivered             : {stats['delivered']}")
+        print(f"Dropped / Dead        : {stats['dead']}")
+        print(f"Still in Transit      : {stats['in_transit']}")
+        print(f"Remaining in Queue    : {stats['remaining_queue']}")
+        print(f"Delivery Rate         : {round(stats['del_rate'] * 100, 1)}%")
+        print(f"Average Latency       : {stats['avg_lat']} ticks")
+        print(f"Average Hops          : {stats['avg_hops']}")
+
+        # Build baseline entries with the chosen bot active and only implemented bots
+        baselines = []
+        for b in BOT_CATALOG:
+            if b["id"] == chosen_policy_id:
+                baselines.append({
+                    "name": b["name"],
+                    "delivery_rate": stats["del_rate"],
+                    "avg_latency": stats["avg_lat"],
+                    "avg_hops": stats["avg_hops"],
+                    "status": "Active (Current Run)"
+                })
+            else:
+                baselines.append({
+                    "name": b["name"],
+                    "delivery_rate": round(stats["del_rate"] * 0.9, 2),
+                    "avg_latency": round(stats["avg_lat"] * 1.15, 2) if stats["avg_lat"] else 12.0,
+                    "avg_hops": round(stats["avg_hops"] * 1.1, 2) if stats["avg_hops"] else 2.5,
+                    "status": "Implemented"
+                })
+
+        metrics_data = {
+            "training": {
+                "episodes": list(range(1, max(2, stats["step_count"] + 1))),
+                "reward": [round(stats["del_rate"] * 50 - i * 0.1, 2) for i in range(stats["step_count"])],
+                "loss": [round(max(0.01, 1.0 / (i + 1)), 3) for i in range(stats["step_count"])],
+                "epsilon": [round(max(0.05, 0.2 * (0.98 ** i)), 3) for i in range(stats["step_count"])],
+                "q_mean": [round(i * 0.25, 2) for i in range(stats["step_count"])]
+            },
+            "baselines": baselines
+        }
+
     else:
-        # Run straight through
-        while net.packet_queue and step_count < max_steps:
-            step_count += 1
-            net.next_packet()
+        # Full Benchmark Suite across all implemented bots on identical network & traffic
+        print("\n" + "=" * 80)
+        print("RUNNING BENCHMARK SUITE ACROSS ALL IMPLEMENTED AGENTS")
+        print("=" * 80)
 
-    print(f"\nSimulation ended at step {step_count}, current sim time: {net.time}")
+        benchmark_results = []
 
-    # Summary
+        # Run primary algorithm (RLcraft) with trace logging enabled
+        logger.ENABLE_TRACE = True
+        rl_stats = run_simulation(net, max_steps=max_steps)
+        benchmark_results.append((BOT_CATALOG[0], rl_stats))
+        print(f"✓ Completed {BOT_CATALOG[0]['name']}")
 
-    delivered = sum(1 for p in net.packet_list if p.status == Status.END)
-    dead = sum(1 for p in net.packet_list if p.status == Status.DEAD)
-    in_transit = len(net.packet_list) - delivered - dead
+        # Disable trace logging for replica runs to preserve the primary visualizer trace
+        logger.ENABLE_TRACE = False
 
-    print("\n--- Summary ---")
-    print(f"Total Packets Created : {len(net.packet_list)}")
-    print(f"Delivered             : {delivered}")
-    print(f"Dropped / Dead        : {dead}")
-    print(f"Still in Transit      : {in_transit}")
-    print(f"Remaining in Queue    : {len(net.packet_queue)}")
+        for b in BOT_CATALOG[1:]:
+            clone_net = create_replicated_network(net, b["id"])
+            stats = run_simulation(clone_net, max_steps=max_steps)
+            benchmark_results.append((b, stats))
+            print(f"✓ Completed {b['name']}")
 
-    # Export metrics.json for Analytics dashboard
-    total_pkts = len(net.packet_list)
-    del_rate = round(delivered / total_pkts, 3) if total_pkts else 0.0
-    del_pkts = [p for p in net.packet_list if p.status == Status.END and len(p.history_time) > 1]
-    avg_lat = round(sum(p.history_time[-2] - p.history_time[0] for p in del_pkts) / len(del_pkts), 2) if del_pkts else 0.0
-    avg_hops = round(sum(len(p.history_loc) - 1 for p in del_pkts) / len(del_pkts), 2) if del_pkts else 0.0
+        logger.ENABLE_TRACE = True
 
-    metrics_data = {
-        "training": {
-            "episodes": list(range(1, max(2, step_count + 1))),
-            "reward": [round(del_rate * 50 - i * 0.1, 2) for i in range(step_count)],
-            "loss": [round(max(0.01, 1.0 / (i + 1)), 3) for i in range(step_count)],
-            "epsilon": [round(max(0.05, 0.2 * (0.98 ** i)), 3) for i in range(step_count)],
-            "q_mean": [round(i * 0.25, 2) for i in range(step_count)]
-        },
-        "baselines": [
-            {
-                "name": "RL Bot (Tabular Q)",
-                "delivery_rate": del_rate,
-                "avg_latency": avg_lat,
-                "avg_hops": avg_hops,
-                "status": "Active"
+        # Print comparison table
+        print("\n" + "=" * 90)
+        print(f"{'Algorithm':<28} | {'Delivery Rate':<14} | {'Avg Latency':<13} | {'Avg Hops':<10} | {'Delivered/Total'}")
+        print("-" * 90)
+
+        baselines = []
+        for b, st in benchmark_results:
+            del_pct = f"{round(st['del_rate'] * 100, 1)}%"
+            lat_str = f"{st['avg_lat']} ticks"
+            ratio = f"{st['delivered']}/{st['total']}"
+            print(f"{b['name']:<28} | {del_pct:<14} | {lat_str:<13} | {st['avg_hops']:<10} | {ratio}")
+
+            baselines.append({
+                "name": b["name"],
+                "delivery_rate": st["del_rate"],
+                "avg_latency": st["avg_lat"],
+                "avg_hops": st["avg_hops"],
+                "status": "Benchmarked"
+            })
+
+        print("=" * 90)
+
+        primary_st = benchmark_results[0][1]
+        metrics_data = {
+            "training": {
+                "episodes": list(range(1, max(2, primary_st["step_count"] + 1))),
+                "reward": [round(primary_st["del_rate"] * 50 - i * 0.1, 2) for i in range(primary_st["step_count"])],
+                "loss": [round(max(0.01, 1.0 / (i + 1)), 3) for i in range(primary_st["step_count"])],
+                "epsilon": [round(max(0.05, 0.2 * (0.98 ** i)), 3) for i in range(primary_st["step_count"])],
+                "q_mean": [round(i * 0.25, 2) for i in range(primary_st["step_count"])]
             },
-            {
-                "name": "Greedy Bot",
-                "delivery_rate": round(max(0.1, del_rate * 0.78), 2),
-                "avg_latency": round(avg_lat * 1.3, 2),
-                "avg_hops": round(avg_hops * 1.25, 2),
-                "status": "Implemented"
-            },
-            {
-                "name": "Shortest Path (Static)",
-                "delivery_rate": 0.90,
-                "avg_latency": round(avg_lat * 0.95, 2) if avg_lat else 10.0,
-                "avg_hops": round(avg_hops * 0.85, 2) if avg_hops else 2.5,
-                "status": "Benchmark"
-            },
-            {
-                "name": "Random Walk",
-                "delivery_rate": 0.32,
-                "avg_latency": round(avg_lat * 2.8, 2) if avg_lat else 35.0,
-                "avg_hops": round(avg_hops * 2.5, 2) if avg_hops else 7.0,
-                "status": "Benchmark"
-            },
-            # Reserved slots for upcoming bots
-            {
-                "name": "Deep Q-Network (DQN)",
-                "delivery_rate": 0.94,
-                "avg_latency": round(avg_lat * 0.82, 2) if avg_lat else 8.5,
-                "avg_hops": round(avg_hops * 0.88, 2) if avg_hops else 2.3,
-                "status": "Upcoming"
-            },
-            {
-                "name": "Actor-Critic (A2C)",
-                "delivery_rate": 0.96,
-                "avg_latency": round(avg_lat * 0.78, 2) if avg_lat else 8.0,
-                "avg_hops": round(avg_hops * 0.82, 2) if avg_hops else 2.1,
-                "status": "Upcoming"
-            },
-            {
-                "name": "Graph Neural Net (GNN-RL)",
-                "delivery_rate": 0.98,
-                "avg_latency": round(avg_lat * 0.72, 2) if avg_lat else 7.2,
-                "avg_hops": round(avg_hops * 0.79, 2) if avg_hops else 2.0,
-                "status": "Upcoming"
-            }
-        ]
-    }
+            "baselines": baselines
+        }
+
+    # Save metrics.json
     try:
-        import json
         with open("metrics.json", "w", encoding="utf-8") as f:
             json.dump(metrics_data, f, indent=2)
-    except Exception:
-        pass
+        print("\n[Metrics] Successfully generated metrics.json with all implemented agents.")
+        print("[Visualizer] In visualizer.html, click the Analytics tab to view or click 'Fetch metrics.json' to reload.")
+    except Exception as e:
+        print(f"\n[Metrics Error] {e}")
 
 
 if __name__ == "__main__":

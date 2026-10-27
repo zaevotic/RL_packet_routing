@@ -6,7 +6,6 @@
 <title>RL Packet Routing Visualizer & Analytics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="trace.js"></script>
 <style>
 :root{--bg:#fafafa;--ink:#121212;--mute:#77777f;--line:#e3e3e6;--edge:#cfcfd4;--acc:#1f3dff;--bad:#e5322d;--good:#10b981;--warn:#f59e0b;color-scheme:light;
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -179,7 +178,8 @@ pre{font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);
   <button id="demo">Demo trace</button>
   <button id="fetch">Fetch trace.json</button>
   <button id="upload">Upload trace.json</button>
-  <button id="mbtn" hidden>Load metrics.json</button>
+  <button id="fetchM" hidden>Fetch metrics.json</button>
+  <button id="mbtn" hidden>Upload metrics.json</button>
   <input id="file" type="file" accept=".json,.jsonl,.txt,application/json" hidden>
   <input id="mfile" type="file" accept=".json,application/json" hidden>
  </nav>
@@ -600,18 +600,53 @@ $("#file").onchange = function(e){
 };
 
 $("#fetch").onclick = function(){
- fetch("trace.json").then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(t){load(t);})
- .catch(function(){note("Couldn’t fetch trace.json from this page. Upload the file or run the demo instead.");});
+ fetch("./trace.json?t=" + Date.now(), { cache: "no-store" })
+  .then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.text();
+  })
+  .then(function(t){
+    load(t);
+    note("Loaded trace.json successfully!");
+  })
+  .catch(function(err){
+    if(window.location.protocol === "file:"){
+      if(window.showOpenFilePicker){
+        window.showOpenFilePicker({
+          types: [{ description: 'JSON Trace (trace.json)', accept: { 'application/json': ['.json'] } }]
+        }).then(function(handles){
+          return handles[0].getFile();
+        }).then(function(file){
+          return file.text();
+        }).then(function(text){
+          load(text);
+          note("Loaded trace.json successfully!");
+        }).catch(function(){});
+        return;
+      }
+      $("#file").click();
+      return;
+    }
+    note("Couldn’t fetch trace.json: " + (err.message || "File not found") + ". Upload trace.json or host with: python3 -m http.server");
+  });
 };
 
 function tryAutoLoad(){
- if(window.__TRACE_DATA__ && window.__TRACE_DATA__.length > 0){
-  load(window.__TRACE_DATA__);
-  return;
- }
- if(window.location.protocol.startsWith("http")){
-  fetch("trace.json").then(function(r){if(r.ok)return r.text();}).then(function(t){if(t)load(t);}).catch(function(){});
- }
+ fetch("./trace.json?t=" + Date.now(), { cache: "no-store" })
+  .then(function(r){ if(r.ok) return r.text(); })
+  .then(function(t){ if(t) load(t); })
+  .catch(function(){});
+
+ fetch("./metrics.json?t=" + Date.now(), { cache: "no-store" })
+  .then(function(r){ if(r.ok) return r.json(); })
+  .then(function(m){
+    if(m && m.baselines){
+      metrics = m;
+      metricsSample = false;
+      if(view === "analytics") render();
+    }
+  })
+  .catch(function(){});
 }
 window.addEventListener("DOMContentLoaded", tryAutoLoad);
 tryAutoLoad();
@@ -872,14 +907,12 @@ function makeSampleMetrics(A){
  return {
   training: { episodes: ep, reward: re, loss: lo, epsilon: es, q_mean: q },
   baselines: [
-   { name: "RL Bot (Tabular Q)", delivery_rate: delRate, avg_latency: L, avg_hops: H, status: "Active" },
+   { name: "RLcraft (Tabular Q)", delivery_rate: delRate, avg_latency: L, avg_hops: H, status: "Active" },
+   { name: "Dijkstra (Shortest Path)", delivery_rate: 0.95, avg_latency: L * 0.85, avg_hops: H * 0.75, status: "Implemented" },
+   { name: "Min-Hop (BFS)", delivery_rate: 0.92, avg_latency: L * 0.9, avg_hops: H * 0.7, status: "Implemented" },
    { name: "Greedy Bot", delivery_rate: 0.68, avg_latency: L * 1.35, avg_hops: H * 1.4, status: "Implemented" },
-   { name: "Shortest Path (Static)", delivery_rate: 0.90, avg_latency: L * 0.95, avg_hops: H * 0.85, status: "Benchmark" },
-   { name: "Random Walk", delivery_rate: 0.32, avg_latency: L * 3.2, avg_hops: H * 2.8, status: "Benchmark" },
-   // Reserved slots for future bots
-   { name: "Deep Q-Network (DQN)", delivery_rate: 0.94, avg_latency: L * 0.82, avg_hops: H * 0.88, status: "Upcoming" },
-   { name: "Actor-Critic (A2C)", delivery_rate: 0.96, avg_latency: L * 0.78, avg_hops: H * 0.82, status: "Upcoming" },
-   { name: "Graph Neural Net (GNN-RL)", delivery_rate: 0.98, avg_latency: L * 0.72, avg_hops: H * 0.79, status: "Upcoming" }
+   { name: "Random Walk", delivery_rate: 0.32, avg_latency: L * 3.2, avg_hops: H * 2.8, status: "Implemented" },
+   { name: "Least Congested", delivery_rate: 0.86, avg_latency: L * 1.05, avg_hops: H * 1.1, status: "Implemented" }
   ]
  };
 }
@@ -1016,6 +1049,7 @@ function setView(v){
  $(".app").dataset.view=v;
  $("#tabR").setAttribute("aria-selected",v==="replay");
  $("#tabA").setAttribute("aria-selected",v==="analytics");
+ $("#fetchM").hidden=v!=="analytics";
  $("#mbtn").hidden=v!=="analytics";
  if(v==="analytics"){
   pause();
@@ -1026,6 +1060,39 @@ function setView(v){
 $("#tabR").onclick=function(){setView("replay")};
 $("#tabA").onclick=function(){setView("analytics")};
 $("#mbtn").onclick=function(){$("#mfile").click()};
+$("#fetchM").onclick=function(){
+ fetch("./metrics.json?t=" + Date.now(), { cache: "no-store" })
+  .then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  })
+  .then(function(m){
+    metrics=m;
+    metricsSample=false;
+    anErr="";
+    render();
+    note("Loaded metrics.json successfully!");
+  })
+  .catch(function(err){
+    if(window.location.protocol === "file:" && window.showOpenFilePicker){
+      window.showOpenFilePicker({
+        types: [{ description: 'JSON Metrics (metrics.json)', accept: { 'application/json': ['.json'] } }]
+      }).then(function(handles){
+        return handles[0].getFile();
+      }).then(function(file){
+        return file.text();
+      }).then(function(text){
+        metrics=JSON.parse(text);
+        metricsSample=false;
+        anErr="";
+        render();
+        note("Loaded metrics.json successfully!");
+      }).catch(function(){});
+      return;
+    }
+    $("#mfile").click();
+  });
+};
 $("#mfile").onchange=function(e){
  var f=e.target.files[0];
  if(!f) return;
