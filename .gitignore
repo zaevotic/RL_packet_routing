@@ -1,2 +1,5 @@
 __pycache__
-network.log
+
+*.json
+*.js
+*.log

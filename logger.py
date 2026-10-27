@@ -13,13 +13,24 @@ class LogType(Enum):
 
 
 TRACE_LOG = "trace.json"
+TRACE_JS = "trace.js"
 
 
 def emit_trace_event(event_dict, mode="a"):
-    """Appends or writes a structured JSON trace event line to trace.json."""
+    """Appends or writes a structured JSON trace event line to trace.json and trace.js."""
     try:
         with open(TRACE_LOG, mode, encoding="utf-8") as f:
             f.write(json.dumps(event_dict) + "\n")
+    except Exception as e:
+        pass
+
+    try:
+        with open(TRACE_JS, mode, encoding="utf-8") as f:
+            line = json.dumps(event_dict)
+            if mode == "w":
+                f.write(f"window.__TRACE_DATA__ = [{line}];\n")
+            else:
+                f.write(f"if(window.__TRACE_DATA__) window.__TRACE_DATA__.push({line});\n")
     except Exception as e:
         pass
 
@@ -129,24 +140,31 @@ def simulation_error(message):
 PACKET_LOG="packets.log"
 
 
-def packet_created(packet):
+def packet_created(packet=None):
+    if packet is None:
+        return
     log(
         f"Packet {packet.id} created: "
         f"{packet.start_loc} -> {packet.end_loc}, "
         f"size={packet.size}, ttl={packet.ttl}",
         general_logfile_path=PACKET_LOG
     )
+    t = packet.history_time[0] if getattr(packet, "history_time", None) else 0
     emit_trace_event({
         "type": "spawn",
         "p": getattr(packet, "id", None),
         "node": getattr(packet, "start_loc", None),
         "size": getattr(packet, "size", 0),
         "ttl": getattr(packet, "ttl", 50),
-        "t": packet.history_time[0] if getattr(packet, "history_time", None) else 0
+        "t": t
     })
 
 
-def packet_moved(packet,previous_node,current_node,time):
+def packet_moved(packet=None, previous_node=None, current_node=None, time=None):
+    if packet is None:
+        return
+    if time is None and hasattr(packet, "history_time") and packet.history_time:
+        time = packet.history_time[-1]
     log(
         f"Packet {packet.id} moved: "
         f"{previous_node} -> {current_node} at t={time}",
@@ -157,11 +175,15 @@ def packet_moved(packet,previous_node,current_node,time):
         "p": getattr(packet, "id", None),
         "from": previous_node,
         "to": current_node,
-        "t": time
+        "t": time if time is not None else 0
     })
 
 
-def packet_delivered(packet,time):
+def packet_delivered(packet=None, time=None):
+    if packet is None:
+        return
+    if time is None and hasattr(packet, "history_time") and packet.history_time:
+        time = packet.history_time[-2] if len(packet.history_time) > 1 and packet.history_time[-1] == -1 else packet.history_time[-1]
     log(
         f"Packet {packet.id} delivered to {packet.end_loc} at t={time}",
         general_logfile_path=PACKET_LOG
@@ -170,11 +192,15 @@ def packet_delivered(packet,time):
         "type": "deliver",
         "p": getattr(packet, "id", None),
         "node": getattr(packet, "end_loc", None),
-        "t": time
+        "t": time if time is not None else 0
     })
 
 
-def packet_dropped(packet,reason,time=None):
+def packet_dropped(packet=None, reason="dropped", time=None):
+    if packet is None:
+        return
+    if time is None and hasattr(packet, "history_time") and packet.history_time:
+        time = packet.history_time[-2] if len(packet.history_time) > 1 and packet.history_time[-1] == -1 else packet.history_time[-1]
     log(
         f"Packet {packet.id} dropped: {reason}, t={time}",
         LogType.WARNING,
@@ -191,7 +217,11 @@ def packet_dropped(packet,reason,time=None):
     })
 
 
-def packet_loop(packet,node,time=None):
+def packet_loop(packet=None, node=None, time=None):
+    if packet is None:
+        return
+    if time is None and hasattr(packet, "history_time") and packet.history_time:
+        time = packet.history_time[-1]
     log(
         f"Packet {packet.id} loop detected at node {node}, t={time}",
         LogType.WARNING,

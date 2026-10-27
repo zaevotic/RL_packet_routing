@@ -1,4 +1,4 @@
-import logging
+import logger
 import heapq
 import random
 from config import Node, Edge
@@ -63,6 +63,7 @@ class Network:
             self.network[B][A] = self.nodes
             self.node_list[A].add_edge(B, self.edge_list[-1]) #break point
             self.node_list[B].add_edge(A, self.edge_list[-1]) #break point
+            logger.edge_added(len(self.edge_list) - 1, A, B)
 
     def add_node(self):
         for _ in range(self.nodes):
@@ -72,6 +73,7 @@ class Network:
         self.node_list.append(Node(self.nodes-1))
         self.network.append([-1 for _ in range(self.nodes)])
         self.traffic.append([-1 for _ in range(self.nodes)])
+        logger.node_added(self.nodes - 1)
         
 
     def populate_node():
@@ -97,6 +99,7 @@ class Network:
         self.packet_list.append(Packet(self.packet_count, A, B, size, self.time, ttl))
         heapq.heappush(self.packet_queue, (self.packet_list[-1].history_time[-1], self.packet_list[-1].id))
         self.packet_count += 1
+        logger.traffic_generated(self, A, B, packets)
 
 
     def generate_packet(self, A = -1, B = -1, size = -1, ttl = 50):

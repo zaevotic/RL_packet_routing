@@ -1,5 +1,6 @@
 import random
 import heapq
+import logger
 
 from bots import Greedy
 '''
@@ -28,7 +29,7 @@ class Node:
         history_loc = packet.history_loc
 
         if packet.end_loc == self.id:
-            packet.reached()
+            packet.reached(time)
             # Calculate and return a reward
             return
 
@@ -38,6 +39,8 @@ class Node:
                 temp -= 1
 
         if temp <= 0:
+            logger.packet_loop(packet, self.id, time)
+            packet.dropped("Routing loop", time)
             # add a penalty for the loop
             return
 
