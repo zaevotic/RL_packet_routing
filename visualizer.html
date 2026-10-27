@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>RL Packet Routing Visualizer</title>
+<title>RL Packet Routing Visualizer & Analytics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="trace.js"></script>
@@ -18,12 +18,24 @@ body{background:var(--bg);color:var(--ink);font:400 14px/1.5 "Schibsted Grotesk"
 button,select{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 :focus-visible{outline:2px solid var(--acc);outline-offset:3px}
 .app{height:100%;display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:1fr 340px}
+
+/* Header & Tabs */
 header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:16px 28px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:36px}
 h1{font-size:15px;font-weight:600;letter-spacing:-.01em}
 h1 span{color:var(--mute);font-weight:400}
+.tabs{display:flex;gap:20px}
+.tabs button{padding:4px 0;color:var(--mute);border-bottom:2px solid transparent;font-weight:500;transition:color .15s, border-color .15s}
+.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--ink);font-weight:600}
 nav{display:flex;gap:20px}
 nav button{padding:4px 0;border-bottom:1px solid transparent;color:var(--mute);transition:color .15s,border-color .15s}
 nav button:hover{color:var(--ink);border-color:var(--ink)}
+
+/* View switching */
+.app[data-view=analytics] main,.app[data-view=analytics] aside,.app[data-view=analytics] footer{display:none}
+.app[data-view=replay] #analytics{display:none}
+
+/* Main Replay Area */
 main{display:grid;grid-template-rows:auto 1fr;min-height:0;min-width:0}
 .stats{display:flex;gap:48px;padding:24px 32px 8px}
 .stat b{display:block;font-size:32px;font-weight:500;letter-spacing:-.03em;line-height:1}
@@ -88,6 +100,7 @@ aside h2{font-size:12px;font-weight:600;color:var(--mute);padding:18px 20px 10px
 .cat-desc .pkt{ font-weight:600; cursor:pointer; padding:0 2px; }
 .cat-desc .pkt:hover{ text-decoration:underline; }
 
+/* Replay Controls Footer */
 footer{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:14px 28px;border-top:1px solid var(--line)}
 .ctl{display:flex;gap:4px}
 .ctl button{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;transition:background .15s}
@@ -102,24 +115,73 @@ input[type=range]::-moz-range-track{height:2px;background:var(--edge)}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--ink);margin-top:-5px;border:0}
 input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--ink);border:0}
 select{padding:4px 0;color:var(--mute);font-size:13px}
+
+/* ======================================================================
+   ANALYTICS STYLES
+   ====================================================================== */
+#analytics{grid-column:1/-1;grid-row:2;overflow-y:auto;min-height:0;padding:32px}
+.an{max-width:1240px;margin:0 auto}
+.an-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:28px}
+.an-head h2{font-size:22px;font-weight:500;letter-spacing:-.02em}
+.src{display:flex;gap:20px;color:var(--mute);font-size:12px;flex-wrap:wrap}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:28px;margin-bottom:48px}
+.group{margin-bottom:44px}
+.group>h3{font-size:15px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.group>h3 .sub{font-size:12px;font-weight:400;color:var(--mute)}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:28px 36px}
+.panel{border-top:1px solid var(--line);padding-top:14px;min-width:0}
+.s3{grid-column:span 3}.s4{grid-column:span 4}.s6{grid-column:span 6}.s12{grid-column:span 12}
+.ph{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:12px}
+.ph h4{font-size:13px;font-weight:500}
+.ph code{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);text-align:right}
+svg.ch{display:block;width:100%;height:auto;overflow:visible}
+.ch .gl{stroke:var(--line);stroke-width:1}
+.ch .tx{fill:var(--mute);font-size:8px}
+.ch .ln{fill:none;stroke-width:1.5;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.lg{display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--mute)}
+.lg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.none{color:var(--mute);font-size:13px;padding:24px 0}
+.hb{display:grid;grid-template-columns:130px 1fr 64px;gap:12px;align-items:center;padding:5px 0;font-size:13px}
+.hb i{display:block;height:4px;background:var(--edge);min-width:1px;border-radius:2px}
+.hb.me i{background:var(--acc)}
+.hb.upcoming i{background:var(--warn);opacity:0.6}
+.hb b{font-weight:400;text-align:right}
+.hb span{color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-weight:500;color:var(--mute);text-align:left;padding:8px 16px 8px 0;white-space:nowrap;border-bottom:1px solid var(--line)}
+td{padding:8px 16px 8px 0;border-top:1px solid var(--line);white-space:nowrap}
+td.deliver{color:var(--good);font-weight:500}td.drop{color:var(--bad);font-weight:500}td.live{color:var(--mute)}
+pre{font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mute);overflow:auto;background:rgba(255,255,255,0.02);padding:14px;border-radius:6px;border:1px solid var(--line)}
+
+@media (max-width:1100px){.s3{grid-column:span 6}.s4{grid-column:span 6}}
 @media (max-width:860px){
  body{overflow:auto}.app{height:auto;min-height:100%;grid-template-columns:1fr}
- header{padding:14px 18px;flex-wrap:wrap;gap:12px}nav{gap:14px}
+ header{padding:14px 18px;flex-wrap:wrap;gap:12px}.brand{gap:16px;flex-wrap:wrap}nav{gap:14px}
  .stats{padding:18px;gap:24px;flex-wrap:wrap}.stat b{font-size:26px}
  .stage{height:52vh}aside{border-left:0;border-top:1px solid var(--line);max-height:280px}
  footer{padding:12px 18px;flex-wrap:wrap}footer .lbl{display:none}input[type=range]{order:3;flex-basis:100%}
+ #analytics{padding:20px}.grid .panel{grid-column:1/-1}
 }
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" data-view="replay">
 <header>
- <h1>RL Packet Routing <span>Visualizer</span></h1>
+ <div class="brand">
+  <h1>RL Packet Routing <span>Visualizer</span></h1>
+  <div class="tabs" role="tablist">
+   <button id="tabR" role="tab" aria-selected="true">Replay</button>
+   <button id="tabA" role="tab" aria-selected="false">Analytics</button>
+  </div>
+ </div>
  <nav>
   <button id="demo">Demo trace</button>
   <button id="fetch">Fetch trace.json</button>
   <button id="upload">Upload trace.json</button>
+  <button id="mbtn" hidden>Load metrics.json</button>
   <input id="file" type="file" accept=".json,.jsonl,.txt,application/json" hidden>
+  <input id="mfile" type="file" accept=".json,application/json" hidden>
  </nav>
 </header>
 <main>
@@ -139,6 +201,7 @@ select{padding:4px 0;color:var(--mute);font-size:13px}
  <h2>Simultaneous Stream <span id="count">0 frames</span></h2>
  <ul id="log"><li class="time-card" style="border-left-color:var(--mute)"><div class="cat-desc" style="color:var(--mute)">Ready. Load or fetch a trace.json to start.</div></li></ul>
 </aside>
+<section id="analytics" aria-label="Analytics"><div class="an" id="an"></div></section>
 <footer>
  <div class="ctl">
   <button id="back" aria-label="Previous frame"><svg viewBox="0 0 16 16"><path d="M10.5 3 5.5 8l5 5"/></svg></button>
@@ -191,7 +254,6 @@ function makeDemo(){
   var prev={};prev[a]=-1;var q=[a];
   while(q.length){var u=q.shift();if(u===b)break;adj[u].slice().sort(function(){return r()-.5}).forEach(function(v){if(!(v in prev)){prev[v]=u;q.push(v)}})}
   var path=[];for(var c=b;c!==-1;c=prev[c])path.unshift(c);
-  // Randomized start times
   var t0=Math.floor(r()*14), dropAt=r()<.18?1+Math.floor(r()*(path.length-1)):-1;
   ev.push({t:t0,type:"spawn",p:p,node:a});
   for(var i=1;i<path.length;i++){
@@ -201,7 +263,7 @@ function makeDemo(){
   }
  }
  ev=ev.map(function(e,i){return{e:e,i:i}}).sort(function(x,y){return x.e.t-y.e.t||x.i-y.i}).map(function(x){return x.e});
- return{nodes:nodes,edges:edges,events:ev};
+ return{nodes:nodes,edges:edges,events:ev,__demo:1};
 }
 
 // Centered Organic Layout with Strong Anti-Overlap Repulsion
@@ -211,7 +273,6 @@ function layoutNodes(nodes, edges){
  var hasCoords = nodes.every(function(n){ return typeof n.x==="number" && typeof n.y==="number"; });
  if(hasCoords) return;
 
- // 1. Initial golden spiral tightly clustered in the center
  var golden = Math.PI * (3 - Math.sqrt(5));
  for(var i=0; i<N; i++){
   var r = 0.06 + 0.22 * Math.sqrt((i + 1) / N);
@@ -220,7 +281,6 @@ function layoutNodes(nodes, edges){
   nodes[i].y = 0.5 + r * Math.sin(theta);
  }
 
- // 2. Physics simulation: strong node-node repulsion + edge springs + center gravity
  var iters = Math.max(140, 50 + N * 3);
  var minDist = Math.max(0.09, 0.75 / Math.sqrt(N));
  var targetDist = Math.max(0.14, 0.95 / Math.sqrt(N));
@@ -229,20 +289,18 @@ function layoutNodes(nodes, edges){
   var temp = 1 - (s / iters);
   var fx = new Float32Array(N), fy = new Float32Array(N);
 
-  // Central gravity: prevents points from drifting to the edges
   for(var i=0; i<N; i++){
    fx[i] -= (nodes[i].x - 0.5) * 0.22;
    fy[i] -= (nodes[i].y - 0.5) * 0.22;
   }
 
-  // Node-node repulsion with guaranteed minimum separation
   for(var i=0; i<N; i++){
    for(var j=i+1; j<N; j++){
     var dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
     var d = Math.hypot(dx, dy) || 0.001;
     var rep = (0.016 / (d * d));
     if(d < minDist){
-     rep += (minDist - d) * 1.8; // hard non-overlap push
+     rep += (minDist - d) * 1.8;
     }
     rep = Math.min(rep, 0.14) * temp;
     fx[i] += (dx/d)*rep; fy[i] += (dy/d)*rep;
@@ -250,7 +308,6 @@ function layoutNodes(nodes, edges){
    }
   }
 
-  // Edge springs
   if(edges){
    for(var k=0; k<edges.length; k++){
     var u = edges[k][0], v = edges[k][1];
@@ -270,7 +327,6 @@ function layoutNodes(nodes, edges){
   }
  }
 
- // 3. Scale and center comfortably into canvas bounds [0.15, 0.85]
  var minX=1, maxX=0, minY=1, maxY=0;
  for(var i=0; i<N; i++){
   minX = Math.min(minX, nodes[i].x); maxX = Math.max(maxX, nodes[i].x);
@@ -288,7 +344,6 @@ function layoutNodes(nodes, edges){
  }
 }
 
-// Parses trace data and groups events into simultaneous time frames
 function parseTraceData(raw){
  var parsed = null;
  if(typeof raw === "object" && raw !== null && Array.isArray(raw.nodes) && Array.isArray(raw.events)){
@@ -346,10 +401,8 @@ function parseTraceData(raw){
 
  if(!parsed || !Array.isArray(parsed.nodes) || !Array.isArray(parsed.events)) return null;
 
- // Sort events by time
  parsed.events.sort(function(a, b){ return (a.t || 0) - (b.t || 0); });
 
- // Group simultaneous events by timestamp into timeFrames
  var framesMap = {};
  var frames = [];
  parsed.events.forEach(function(e){
@@ -391,6 +444,7 @@ function load(t,msg){
  $("#stepR").textContent = "Frame " + trace.timeFrames.length;
  $("#count").textContent = trace.timeFrames.length + " frames (" + trace.events.length + " events)";
  go(0);
+ if(view === "analytics") render();
 }
 
 function note(m){
@@ -405,7 +459,6 @@ function go(n){
  S = {};
  var currentSimTime = 0;
 
- // Evaluate simulation state up through frameIdx
  for(var fi = 0; fi < frameIdx; fi++){
   var fr = trace.timeFrames[fi];
   currentSimTime = fr.t;
@@ -432,7 +485,6 @@ function go(n){
   }
  }
 
- // Compute telemetry numbers
  var fl = 0, de = 0, dr = 0;
  for(var k in S){
   var s = S[k].status;
@@ -449,7 +501,6 @@ function go(n){
  $("#stepL").textContent = "Frame " + frameIdx;
  $("#scrub").value = frameIdx;
 
- // Render combined simultaneous update cards in Event Stream
  var html = "";
  for(var j = frameIdx - 1; j >= Math.max(0, frameIdx - 35); j--){
   html += renderGroupedCard(trace.timeFrames[j]);
@@ -459,7 +510,6 @@ function go(n){
  if(frameIdx >= trace.timeFrames.length && playing) pause();
 }
 
-// Combines simultaneous events category-wise into a clean grouped card
 function renderGroupedCard(fr){
  var card = '<li class="time-card">';
  card += '<div class="time-head"><time>t = ' + fr.t + '</time><span class="badge">' + fr.events.length + ' updates</span></div>';
@@ -501,7 +551,6 @@ function renderGroupedCard(fr){
  return card;
 }
 
-// Hover over packet badge in event log to spotlight
 $("#log").addEventListener("mouseover", function(e){
  var target = e.target.textContent;
  if(target && target.startsWith("P")){
@@ -535,7 +584,7 @@ $("#reset").onclick = function(){ pause(); go(0); };
 $("#scrub").oninput = function(e){ pause(); go(+e.target.value); };
 $("#speed").onchange = function(e){ speed = +e.target.value; };
 
-function demo(){ load(makeDemo()); play(); }
+function demo(){ load(makeDemo()); if(view === "replay") play(); }
 $("#demo").onclick = demo;
 $("#demo2").onclick = demo;
 $("#upload").onclick = function(){ $("#file").click(); };
@@ -583,7 +632,7 @@ function frame(now){
  requestAnimationFrame(frame);
  var cs = getComputedStyle(document.documentElement), C = function(n){ return cs.getPropertyValue(n).trim(); };
  ctx.clearRect(0, 0, W, H);
- if(!trace || !trace.timeFrames) return;
+ if(!trace || !trace.timeFrames || view !== "replay") return;
 
  if(playing && now - lastChange > 900 / speed){
   if(frameIdx < trace.timeFrames.length) go(frameIdx + 1);
@@ -602,7 +651,6 @@ function frame(now){
  var rawProg = Math.min(1, elapsed / dur);
  var ease = 1 - Math.pow(1 - rawProg, 3);
 
- // 1. Draw static topology edges
  ctx.lineWidth = 1;
  ctx.strokeStyle = C("--edge");
  trace.edges.forEach(function(e){
@@ -613,7 +661,6 @@ function frame(now){
   ctx.stroke();
  });
 
- // Count occupancy per node and per edge so overlapping points never collide
  var nodeCount = {}, nodeOrder = {};
  var edgeCount = {}, edgeOrder = {};
 
@@ -631,7 +678,6 @@ function frame(now){
   }
  }
 
- // 2. Draw continuous packet trails with forward-moving unhighlighting beams
  for(var k in S){
   var o = S[k];
   if(!o.path || o.path.length === 0) continue;
@@ -644,24 +690,18 @@ function frame(now){
   var to = P(o.at), pos = to;
   var col = getPacketColor(o.id, isHovered ? 1.0 : (isLive ? 0.9 : 0.22));
 
-  // Forward-Moving Beam Mechanics:
-  // Head moves from source to target; Tail smoothly follows and moves forward
-  // rather than abruptly blipping out when unhighlighting!
   if(isHop){
    var fr = P(o.from);
    var ekey = Math.min(o.from, o.to) + "_" + Math.max(o.from, o.to);
    var eIdx = (edgeOrder[ekey] = (edgeOrder[ekey] || 0) + 1);
    var eTotal = edgeCount[ekey] || 1;
 
-   // Lane offset so simultaneous packets on the same edge don't overlap
    var edx = to[0] - fr[0], edy = to[1] - fr[1];
    var elen = Math.hypot(edx, edy) || 1;
    var perpX = -edy / elen, perpY = edx / elen;
    var laneOffset = (eIdx - (eTotal + 1) / 2) * 8;
 
-   // Head position (0 to 1)
    var headT = Math.min(1, ease * 1.25);
-   // Tail position follows forward (0 to 1) so it sweeps forward as it unhighlights!
    var tailT = Math.max(0, (ease - 0.28) * 1.38);
 
    var headPos = [
@@ -675,7 +715,6 @@ function frame(now){
 
    pos = headPos;
 
-   // Draw dynamic forward-gliding unhighlighting beam
    ctx.beginPath();
    ctx.strokeStyle = col;
    ctx.lineWidth = isHovered ? 3.5 : 2.5;
@@ -685,7 +724,6 @@ function frame(now){
    ctx.stroke();
 
   } else {
-   // Packet is resting at node: apply non-overlapping radial orbit if multiple packets share node
    var nTotal = nodeCount[o.at] || 1;
    var nIdx = (nodeOrder[o.at] = (nodeOrder[o.at] || 0) + 1);
    if(nTotal > 1){
@@ -695,7 +733,6 @@ function frame(now){
    }
   }
 
-  // Draw full continuous path history (faint trail showing complete route)
   if(o.path.length > 1){
    ctx.strokeStyle = getPacketColor(o.id, isHovered ? 0.7 : (isLive ? 0.35 : 0.18));
    ctx.lineWidth = isHovered ? 2.5 : 1.5;
@@ -709,21 +746,17 @@ function frame(now){
    ctx.stroke();
   }
 
-  // Draw leading packet particle and badge label
   if(isLive){
-   // Soft glow halo
    ctx.beginPath();
    ctx.arc(pos[0], pos[1], 7, 0, Math.PI * 2);
    ctx.fillStyle = getPacketColor(o.id, 0.22);
    ctx.fill();
 
-   // Core particle
    ctx.beginPath();
    ctx.arc(pos[0], pos[1], 4.5, 0, Math.PI * 2);
    ctx.fillStyle = getPacketColor(o.id, 1.0);
    ctx.fill();
 
-   // Centered badge tag above particle
    ctx.font = '10px "Schibsted Grotesk",system-ui,sans-serif';
    ctx.fillStyle = getPacketColor(o.id, isHovered ? 1.0 : 0.88);
    ctx.textAlign = "center";
@@ -731,7 +764,6 @@ function frame(now){
   }
  }
 
- // 3. Draw nodes (centered, cleanly spaced)
  ctx.font = '12px "Schibsted Grotesk",system-ui,sans-serif';
  ctx.textAlign = "center";
  trace.nodes.forEach(function(o, i){
@@ -748,7 +780,6 @@ function frame(now){
   ctx.fillText(nm(i), p[0], p[1] - 12);
  });
 
- // 4. Pulse rings on delivery or cross marks on drop for all events in current frame
  if(frameIdx > 0 && trace.timeFrames[frameIdx - 1]){
   var curFr = trace.timeFrames[frameIdx - 1];
   curFr.delivers.forEach(function(ev){
@@ -774,6 +805,244 @@ function frame(now){
  }
 }
 requestAnimationFrame(frame);
+
+/* ======================================================================
+   ANALYTICS ENGINE & DASHBOARD
+   ====================================================================== */
+var view="replay",metrics=null,metricsSample=true,traceDemo=false,sampleTrace=null,anErr="";
+
+var fx=function(v){return Math.abs(v)>=100?Math.round(v):+(+v).toFixed(1)};
+var pct=function(v){return Math.round(v*100)+"%"};
+
+function analyze(t){
+ var P={},node={},link={},lab=function(n){return t.nodes[n]&&t.nodes[n].label||LET[n]||n};
+ t.events.forEach(function(e){
+  var o=P[e.p]||(P[e.p]={id:e.p,t0:e.t,hops:0,path:[],status:"live"});
+  if(e.type==="spawn")o.path=[e.node];
+  else if(e.type==="hop"){
+   if(!o.path.length)o.path=[e.from];
+   o.hops++;
+   o.path.push(e.to);
+   node[e.to]=(node[e.to]||0)+1;
+   var k=Math.min(e.from,e.to)+"-"+Math.max(e.from,e.to);
+   link[k]=(link[k]||0)+1;
+  } else {
+   o.status=e.type;
+   o.t1=e.t;
+  }
+ });
+
+ var all=Object.keys(P).map(function(k){return P[k]}).sort(function(a,b){return a.id-b.id});
+ var D=all.filter(function(p){return p.status==="deliver"}).sort(function(a,b){return (a.t1||0)-(b.t1||0)});
+ D.forEach(function(p){p.lat=Math.max(0,(p.t1||0)-p.t0)});
+ var lat=D.map(function(p){return p.lat}),n=lat.length,sum=0,run=lat.map(function(v,i){sum+=v;return sum/(i+1)});
+ var srt=lat.slice().sort(function(a,b){return a-b});
+ var ev=t.events,tmin=ev.length?ev[0].t:0,tmax=ev.length?ev[ev.length-1].t:0;
+ var out={x:[],d:[],r:[]},cd=0,cr=0;
+ ev.forEach(function(e){
+  if(e.type==="deliver"||e.type==="drop"){
+   e.type==="deliver"?cd++:cr++;
+   out.x.push(e.t);out.d.push(cd);out.r.push(cr);
+  }
+ });
+ var mh=Math.max.apply(0,[1].concat(D.map(function(p){return p.hops}))),hist=[];
+ for(var i=1;i<=mh;i++)hist.push(D.filter(function(p){return p.hops===i}).length);
+ var nodes=Object.keys(node).map(function(k){return{k:"Node "+lab(+k),v:node[k]}}).sort(function(a,b){return b.v-a.v});
+ var links=Object.keys(link).map(function(k){var a=k.split("-");return{k:lab(+a[0])+" – "+lab(+a[1]),v:link[k]}}).sort(function(a,b){return b.v-a.v}).slice(0,8);
+ return{
+  all:all,D:D,lab:lab,total:all.length,delivered:n,dropped:all.filter(function(p){return p.status==="drop"}).length,
+  lat:lat,run:run,avgLat:n?sum/n:0,p95:n?srt[Math.max(0,Math.ceil(.95*n)-1)]:0,
+  avgHops:n?D.reduce(function(a,p){return a+p.hops},0)/n:0,thr:n/Math.max(1,tmax-tmin),out:out,hist:hist,nodes:nodes,links:links
+ };
+}
+
+// Sample metrics.json schema with reserved slots for upcoming bots
+function makeSampleMetrics(A){
+ var s=11,r=function(){s=(s*1664525+1013904223)%4294967296;return s/4294967296-.5},ep=[],re=[],lo=[],es=[],q=[];
+ for(var i=1;i<=100;i++){
+  ep.push(i);
+  re.push(+(-50+75*(1-Math.exp(-i/30))+r()*(12*Math.exp(-i/50)+2)).toFixed(2));
+  lo.push(+(1.4*Math.exp(-i/25)+.04+r()*.06).toFixed(3));
+  es.push(+Math.max(.05,Math.exp(-i/35)).toFixed(3));
+  q.push(+(25*(1-Math.exp(-i/40))+r()).toFixed(2));
+ }
+ var L=A.avgLat||12,H=A.avgHops||3.2;
+ var delRate = A.total ? A.delivered / A.total : 0.85;
+
+ return {
+  training: { episodes: ep, reward: re, loss: lo, epsilon: es, q_mean: q },
+  baselines: [
+   { name: "RL Bot (Tabular Q)", delivery_rate: delRate, avg_latency: L, avg_hops: H, status: "Active" },
+   { name: "Greedy Bot", delivery_rate: 0.68, avg_latency: L * 1.35, avg_hops: H * 1.4, status: "Implemented" },
+   { name: "Shortest Path (Static)", delivery_rate: 0.90, avg_latency: L * 0.95, avg_hops: H * 0.85, status: "Benchmark" },
+   { name: "Random Walk", delivery_rate: 0.32, avg_latency: L * 3.2, avg_hops: H * 2.8, status: "Benchmark" },
+   // Reserved slots for future bots
+   { name: "Deep Q-Network (DQN)", delivery_rate: 0.94, avg_latency: L * 0.82, avg_hops: H * 0.88, status: "Upcoming" },
+   { name: "Actor-Critic (A2C)", delivery_rate: 0.96, avg_latency: L * 0.78, avg_hops: H * 0.82, status: "Upcoming" },
+   { name: "Graph Neural Net (GNN-RL)", delivery_rate: 0.98, avg_latency: L * 0.72, avg_hops: H * 0.79, status: "Upcoming" }
+  ]
+ };
+}
+
+var NONE='<p class="none">No data available yet.</p>';
+function line(S,o){
+ o=o||{};var w=o.w||400,h=o.h||140,L=36,R=8,T=8,B=20,xs=[],ys=[];
+ S.forEach(function(s){xs=xs.concat(s.x);ys=ys.concat(s.y)});
+ if(!xs.length)return NONE;
+ var x0=Math.min.apply(0,xs),x1=Math.max.apply(0,xs),y0=Math.min(0,Math.min.apply(0,ys)),y1=Math.max.apply(0,ys);
+ if(x1===x0)x1=x0+1;if(y1===y0)y1=y0+1;
+ var X=function(v){return L+(v-x0)/(x1-x0)*(w-L-R)},Y=function(v){return T+(1-(v-y0)/(y1-y0))*(h-T-B)},g="";
+ for(var i=0;i<3;i++){
+  var v=y0+(y1-y0)*i/2,y=Y(v).toFixed(1);
+  g+='<line class="gl" x1="'+L+'" x2="'+(w-R)+'" y1="'+y+'" y2="'+y+'"/><text class="tx" x="'+(L-6)+'" y="'+(+y+3)+'" text-anchor="end">'+fx(v)+'</text>';
+ }
+ g+='<text class="tx" x="'+L+'" y="'+(h-4)+'">'+fx(x0)+'</text><text class="tx" x="'+(w-R)+'" y="'+(h-4)+'" text-anchor="end">'+fx(x1)+'</text>';
+ S.forEach(function(s){
+  g+='<path class="ln" stroke="var('+s.c+')" d="'+s.x.map(function(v,i){return(i?"L":"M")+X(v).toFixed(1)+" "+Y(s.y[i]).toFixed(1)}).join("")+'"/>';
+ });
+ return'<svg class="ch" viewBox="0 0 '+w+' '+h+'">'+g+'</svg>'+(S.length>1?'<div class="lg">'+S.map(function(s){return'<span><i style="background:var('+s.c+')"></i>'+s.n+'</span>'}).join("")+'</div>':"");
+}
+
+function bars(v,lab){
+ var w=400,h=140,L=36,R=8,T=8,B=20,n=v.length;if(!n)return NONE;
+ var m=Math.max.apply(0,v)||1,bw=(w-L-R)/n,g='<line class="gl" x1="'+L+'" x2="'+(w-R)+'" y1="'+(h-B)+'" y2="'+(h-B)+'"/><text class="tx" x="'+(L-6)+'" y="'+(T+3)+'" text-anchor="end">'+m+'</text><text class="tx" x="'+(L-6)+'" y="'+(h-B+3)+'" text-anchor="end">0</text>';
+ v.forEach(function(c,i){
+  var bh=c/m*(h-T-B);
+  g+='<rect x="'+(L+i*bw+bw*.18).toFixed(1)+'" y="'+(h-B-bh).toFixed(1)+'" width="'+(bw*.64).toFixed(1)+'" height="'+bh.toFixed(1)+'" fill="var(--acc)" rx="2"/><text class="tx" x="'+(L+i*bw+bw/2).toFixed(1)+'" y="'+(h-4)+'" text-anchor="middle">'+lab[i]+'</text>';
+ });
+ return'<svg class="ch" viewBox="0 0 '+w+' '+h+'">'+g+'</svg>';
+}
+
+function hlist(rows,f){
+ if(!rows.length)return NONE;
+ var m=Math.max.apply(0,rows.map(function(r){return r.v}))||1;
+ return rows.map(function(r){
+  var cls = r.me ? " me" : (r.upcoming ? " upcoming" : "");
+  return'<div class="hb'+cls+'"><span>'+r.k+'</span><i style="width:'+(r.v/m*100).toFixed(1)+'%"></i><b>'+f(r.v)+'</b></div>';
+ }).join("");
+}
+
+var KPIS=[
+ ["delivery_rate","Delivery rate",function(A){return A.total?pct(A.delivered/A.total):"–"}],
+ ["avg_latency","Average latency, time units",function(A){return A.delivered?fx(A.avgLat):"–"}],
+ ["p95_latency","95th percentile latency",function(A){return A.delivered?fx(A.p95):"–"}],
+ ["avg_hops","Average hops",function(A){return A.delivered?fx(A.avgHops):"–"}],
+ ["dropped","Dropped packets",function(A){return A.dropped}],
+ ["throughput","Packets delivered per time unit",function(A){return fx(A.thr)}]
+];
+
+function tr(M,key,name,unit){
+ var T=M.training||{};
+ return line([{n:name,c:"--acc",x:T.episodes||[],y:T[key]||[]}],{w:280,h:120});
+}
+
+function policy(M,key,f){
+ return hlist((M.baselines||[]).map(function(b){
+  return {
+   k: b.name + (b.status === "Upcoming" ? " (Future)" : ""),
+   v: b[key],
+   me: /rl|q|agent/i.test(b.name) && b.status !== "Upcoming",
+   upcoming: b.status === "Upcoming"
+  };
+ }),f);
+}
+
+var PANELS=[
+ {id:"latency",g:"Routing performance",s:12,t:"Packet latency over time",src:"trace.events: deliver.t - spawn.t",
+  d:function(A){var x=A.D.map(function(p){return p.t1});return line([{n:"Per packet",c:"--mute",x:x,y:A.lat},{n:"Running average",c:"--acc",x:x,y:A.run}])}},
+ {id:"outcomes",g:"Routing performance",s:6,t:"Delivered and dropped, cumulative",src:"trace.events: deliver | drop",
+  d:function(A){return line([{n:"Delivered",c:"--good",x:A.out.x,y:A.out.d},{n:"Dropped",c:"--bad",x:A.out.x,y:A.out.r}])}},
+ {id:"hops",g:"Routing performance",s:6,t:"Hops per delivered packet",src:"trace.events: count of hop",
+  d:function(A){return bars(A.hist,A.hist.map(function(_,i){return i+1}))}},
+ 
+ {id:"reward",g:"Training dynamics",s:3,t:"Episode reward curve",src:"metrics.training.reward[]",d:function(A,M){return tr(M,"reward","Reward")}},
+ {id:"loss",g:"Training dynamics",s:3,t:"Loss / TD-error",src:"metrics.training.loss[]",d:function(A,M){return tr(M,"loss","Loss")}},
+ {id:"epsilon",g:"Training dynamics",s:3,t:"Exploration rate (ε)",src:"metrics.training.epsilon[]",d:function(A,M){return tr(M,"epsilon","Epsilon")}},
+ {id:"q",g:"Training dynamics",s:3,t:"Mean Q-value",src:"metrics.training.q_mean[]",d:function(A,M){return tr(M,"q_mean","Mean Q")}},
+ 
+ {id:"cmp-delivery",g:"Bot policy comparison",s:6,t:"Delivery rate across bot architectures",src:"metrics.baselines[].delivery_rate",d:function(A,M){return policy(M,"delivery_rate",pct)}},
+ {id:"cmp-latency",g:"Bot policy comparison",s:6,t:"Average latency across bot architectures",src:"metrics.baselines[].avg_latency",d:function(A,M){return policy(M,"avg_latency",fx)}},
+ 
+ {id:"node-load",g:"Network load & bottlenecks",s:6,t:"Packets handled by each node",src:"trace.events: hop.to",d:function(A){return hlist(A.nodes,String)}},
+ {id:"link-use",g:"Network load & bottlenecks",s:6,t:"Busiest links (top utilization)",src:"trace.events: hop.from - hop.to",d:function(A){return hlist(A.links,String)}},
+ 
+ {id:"packets",g:"Packet trajectory details",s:12,t:"All packet traces & statuses",src:"trace.events grouped by packet ID",
+  d:function(A){
+   var S={deliver:"Delivered",drop:"Dropped",live:"In flight"};
+   return'<div class="tw"><table><thead><tr><th>Packet</th><th>Route Traversed</th><th>Latency</th><th>Hops</th><th>Status</th></tr></thead><tbody>'+
+   A.all.map(function(p){
+    return'<tr><td>P'+p.id+'</td><td>'+p.path.map(A.lab).join(" → ")+'</td><td>'+(p.lat!=null?p.lat:"–")+'</td><td>'+p.hops+'</td><td class="'+p.status+'">'+S[p.status]+'</td></tr>';
+   }).join("")+'</tbody></table></div>';
+  }}
+];
+
+var CONTRACT='<section class="group"><h3>Data contract & Schema<span class="sub">JSON specifications for simulation replay and bot evaluation</span></h3><pre>'+[
+ 'trace.json    drives Replay and every trace-derived panel',
+ '  nodes       [{ id, x, y, label? }]          x, y normalised 0 to 1',
+ '  edges       [[from, to]]',
+ '  events      [{ t, type, p, node?, from?, to? }]',
+ '              type: spawn | hop | deliver | drop',
+ '',
+ 'metrics.json  drives Training dynamics and Multi-Bot comparison',
+ '  training    { episodes[], reward[], loss[], epsilon[], q_mean[] }',
+ '  baselines   [{ name, delivery_rate, avg_latency, avg_hops, status? }]',
+ '',
+ 'Extend newer bots by appending entries into metrics.baselines array.'].join("\n")+'</pre></section>';
+
+function render(){
+ var T=trace||(sampleTrace=sampleTrace||makeDemo()),A=analyze(T);
+ if(metricsSample) metrics=makeSampleMetrics(A);
+ var gs=[],by={};
+ PANELS.forEach(function(p){
+  if(!by[p.g]){by[p.g]=[];gs.push(p.g);}
+  by[p.g].push(p);
+ });
+
+ $("#an").innerHTML=
+  '<div class="an-head"><h2>Performance Analytics & Model Evaluation</h2>'+
+  '<div class="src"><span>Trace: '+(trace&&!traceDemo?"loaded trace.json":"built-in demo")+'</span>'+
+  '<span>Metrics: '+(metricsSample?"live simulation estimates":"loaded metrics.json")+'</span>'+
+  (anErr?'<span style="color:var(--bad)">'+anErr+'</span>':"")+'</div></div>'+
+  '<div class="kpis">'+KPIS.map(function(k){return'<div class="stat" data-metric="'+k[0]+'"><b>'+k[2](A)+'</b><small>'+k[1]+'</small></div>'}).join("")+'</div>'+
+  gs.map(function(g){
+   return'<section class="group"><h3>'+g+'</h3><div class="grid">'+by[g].map(function(p){
+    return'<article class="panel s'+p.s+'" data-panel="'+p.id+'"><div class="ph"><h4>'+p.t+'</h4><code>'+p.src+'</code></div>'+p.d(A,metrics)+'</article>';
+   }).join("")+'</div></section>';
+  }).join("")+CONTRACT;
+}
+
+function setView(v){
+ view=v;
+ $(".app").dataset.view=v;
+ $("#tabR").setAttribute("aria-selected",v==="replay");
+ $("#tabA").setAttribute("aria-selected",v==="analytics");
+ $("#mbtn").hidden=v!=="analytics";
+ if(v==="analytics"){
+  pause();
+  render();
+ }
+}
+
+$("#tabR").onclick=function(){setView("replay")};
+$("#tabA").onclick=function(){setView("analytics")};
+$("#mbtn").onclick=function(){$("#mfile").click()};
+$("#mfile").onchange=function(e){
+ var f=e.target.files[0];
+ if(!f) return;
+ var rd=new FileReader();
+ rd.onload=function(){
+  try{
+   metrics=JSON.parse(rd.result);
+   metricsSample=false;
+   anErr="";
+  }catch(x){
+   anErr="Couldn’t read that metrics file as JSON.";
+  }
+  render();
+ };
+ rd.readAsText(f);
+};
+
 </script>
 </body>
 </html>
