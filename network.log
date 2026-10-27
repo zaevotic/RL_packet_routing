@@ -8,3 +8,4 @@
 2026-10-27T06:31:13.247 INFO graph_generated Success Graph generated: 91 nodes, 2688 edges
 2026-10-27T06:31:28.715 INFO traffic_generated Success Traffic generated: 40 -> 2, packets=100, t=0
 2026-10-27T06:32:00.655 INFO graph_generated Success Graph generated: 5 nodes, 10 edges
+2026-10-27T06:34:28.449 INFO graph_generated Success Graph generated: 47 nodes, 592 edges

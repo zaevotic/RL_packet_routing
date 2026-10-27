@@ -1,4 +1,5 @@
-
+import json
+from pathlib import Path
 
 class Greedy:
 
@@ -17,3 +18,18 @@ class Greedy:
                 edge = y.other_end(self.id)
 
         return edge
+
+class Bot:
+
+    def __init__(self, id):
+        self.id = id 
+
+        folder = Path("Data/Bots")
+        folder.mkdir(parents=True, exist_ok = True)
+
+        self.file_path = folder / "matrices.json"
+
+        # Learning Rate (L)
+        
+
+    

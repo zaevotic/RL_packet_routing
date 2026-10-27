@@ -28,6 +28,7 @@ class Node:
         history_loc = packet.history_loc
 
         if packet.end_loc == self.id:
+            packet.reached()
             # Calculate and return a reward
             return
 
