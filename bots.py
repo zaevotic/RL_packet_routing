@@ -14,6 +14,6 @@ class Greedy:
         edge = -1
         for x,y in self.neighbours.items():
             if y.speed > best:
-                edge = y.other_end(id)
+                edge = y.other_end(self.id)
 
         return edge
