@@ -850,8 +850,12 @@ function analyze(t){
    out.x.push(e.t);out.d.push(cd);out.r.push(cr);
   }
  });
- var mh=Math.max.apply(0,[1].concat(D.map(function(p){return p.hops}))),hist=[];
- for(var i=1;i<=mh;i++)hist.push(D.filter(function(p){return p.hops===i}).length);
+ var mh = 1;
+ for(var i = 0; i < D.length; i++){ if(D[i].hops > mh) mh = D[i].hops; }
+ var hist = new Array(mh).fill(0);
+ for(var i = 0; i < D.length; i++){
+  if(D[i].hops >= 1 && D[i].hops <= mh) hist[D[i].hops - 1]++;
+ }
  var nodes=Object.keys(node).map(function(k){return{k:"Node "+lab(+k),v:node[k]}}).sort(function(a,b){return b.v-a.v});
  var links=Object.keys(link).map(function(k){var a=k.split("-");return{k:lab(+a[0])+" – "+lab(+a[1]),v:link[k]}}).sort(function(a,b){return b.v-a.v}).slice(0,8);
  return{
@@ -888,11 +892,36 @@ function makeSampleMetrics(A){
 }
 
 var NONE='<p class="none">No data available yet.</p>';
+
+function minArr(arr, init){
+ var m = init !== undefined ? init : Infinity;
+ for(var i = 0; i < arr.length; i++){ if(arr[i] < m) m = arr[i]; }
+ return m;
+}
+
+function maxArr(arr, init){
+ var m = init !== undefined ? init : -Infinity;
+ for(var i = 0; i < arr.length; i++){ if(arr[i] > m) m = arr[i]; }
+ return m;
+}
+
 function line(S,o){
- o=o||{};var w=o.w||400,h=o.h||140,L=36,R=8,T=8,B=20,xs=[],ys=[];
- S.forEach(function(s){xs=xs.concat(s.x);ys=ys.concat(s.y)});
- if(!xs.length)return NONE;
- var x0=Math.min.apply(0,xs),x1=Math.max.apply(0,xs),y0=Math.min(0,Math.min.apply(0,ys)),y1=Math.max.apply(0,ys);
+ o=o||{};var w=o.w||400,h=o.h||140,L=36,R=8,T=8,B=20;
+ if(!S.length)return NONE;
+
+ var x0 = Infinity, x1 = -Infinity, y0 = 0, y1 = -Infinity, totalPts = 0;
+ S.forEach(function(s){
+  if(s.x && s.x.length){
+   totalPts += s.x.length;
+   var sx0 = minArr(s.x), sx1 = maxArr(s.x);
+   var sy0 = minArr(s.y), sy1 = maxArr(s.y);
+   if(sx0 < x0) x0 = sx0;
+   if(sx1 > x1) x1 = sx1;
+   if(sy0 < y0) y0 = sy0;
+   if(sy1 > y1) y1 = sy1;
+  }
+ });
+ if(x0 === Infinity || !totalPts) return NONE;
  if(x1===x0)x1=x0+1;if(y1===y0)y1=y0+1;
  var X=function(v){return L+(v-x0)/(x1-x0)*(w-L-R)},Y=function(v){return T+(1-(v-y0)/(y1-y0))*(h-T-B)},g="";
  for(var i=0;i<3;i++){
@@ -901,14 +930,24 @@ function line(S,o){
  }
  g+='<text class="tx" x="'+L+'" y="'+(h-4)+'">'+fx(x0)+'</text><text class="tx" x="'+(w-R)+'" y="'+(h-4)+'" text-anchor="end">'+fx(x1)+'</text>';
  S.forEach(function(s){
-  g+='<path class="ln" stroke="var('+s.c+')" d="'+s.x.map(function(v,i){return(i?"L":"M")+X(v).toFixed(1)+" "+Y(s.y[i]).toFixed(1)}).join("")+'"/>';
+  if(!s.x || !s.x.length) return;
+  var step = Math.max(1, Math.floor(s.x.length / 500));
+  var dStr = "";
+  for(var i = 0; i < s.x.length; i += step){
+   dStr += (dStr ? "L" : "M") + X(s.x[i]).toFixed(1) + " " + Y(s.y[i]).toFixed(1);
+  }
+  if((s.x.length - 1) % step !== 0){
+   var last = s.x.length - 1;
+   dStr += "L" + X(s.x[last]).toFixed(1) + " " + Y(s.y[last]).toFixed(1);
+  }
+  g+='<path class="ln" stroke="var('+s.c+')" d="'+dStr+'"/>';
  });
  return'<svg class="ch" viewBox="0 0 '+w+' '+h+'">'+g+'</svg>'+(S.length>1?'<div class="lg">'+S.map(function(s){return'<span><i style="background:var('+s.c+')"></i>'+s.n+'</span>'}).join("")+'</div>':"");
 }
 
 function bars(v,lab){
  var w=400,h=140,L=36,R=8,T=8,B=20,n=v.length;if(!n)return NONE;
- var m=Math.max.apply(0,v)||1,bw=(w-L-R)/n,g='<line class="gl" x1="'+L+'" x2="'+(w-R)+'" y1="'+(h-B)+'" y2="'+(h-B)+'"/><text class="tx" x="'+(L-6)+'" y="'+(T+3)+'" text-anchor="end">'+m+'</text><text class="tx" x="'+(L-6)+'" y="'+(h-B+3)+'" text-anchor="end">0</text>';
+ var m=maxArr(v, 1),bw=(w-L-R)/n,g='<line class="gl" x1="'+L+'" x2="'+(w-R)+'" y1="'+(h-B)+'" y2="'+(h-B)+'"/><text class="tx" x="'+(L-6)+'" y="'+(T+3)+'" text-anchor="end">'+m+'</text><text class="tx" x="'+(L-6)+'" y="'+(h-B+3)+'" text-anchor="end">0</text>';
  v.forEach(function(c,i){
   var bh=c/m*(h-T-B);
   g+='<rect x="'+(L+i*bw+bw*.18).toFixed(1)+'" y="'+(h-B-bh).toFixed(1)+'" width="'+(bw*.64).toFixed(1)+'" height="'+bh.toFixed(1)+'" fill="var(--acc)" rx="2"/><text class="tx" x="'+(L+i*bw+bw/2).toFixed(1)+'" y="'+(h-4)+'" text-anchor="middle">'+lab[i]+'</text>';
@@ -918,7 +957,7 @@ function bars(v,lab){
 
 function hlist(rows,f){
  if(!rows.length)return NONE;
- var m=Math.max.apply(0,rows.map(function(r){return r.v}))||1;
+ var m=maxArr(rows.map(function(r){return r.v}), 1);
  return rows.map(function(r){
   var cls = r.me ? " me" : (r.upcoming ? " upcoming" : "");
   return'<div class="hb'+cls+'"><span>'+r.k+'</span><i style="width:'+(r.v/m*100).toFixed(1)+'%"></i><b>'+f(r.v)+'</b></div>';
@@ -972,10 +1011,13 @@ var PANELS=[
  {id:"packets",g:"Packet trajectory details",s:12,t:"All packet traces & statuses",src:"trace.events grouped by packet ID",
   d:function(A){
    var S={deliver:"Delivered",drop:"Dropped",live:"In flight"};
-   return'<div class="tw"><table><thead><tr><th>Packet</th><th>Route Traversed</th><th>Latency</th><th>Hops</th><th>Status</th></tr></thead><tbody>'+
-   A.all.map(function(p){
+   var MAX_ROWS = 200;
+   var displayPackets = A.all.slice(0, MAX_ROWS);
+   var note = A.all.length > MAX_ROWS ? '<div style="padding:10px 0;color:var(--mute);font-size:12px;font-style:italic">Showing first ' + MAX_ROWS + ' of ' + A.all.length.toLocaleString() + ' packets for UI performance.</div>' : '';
+   return '<div class="tw"><table><thead><tr><th>Packet</th><th>Route Traversed</th><th>Latency</th><th>Hops</th><th>Status</th></tr></thead><tbody>'+
+   displayPackets.map(function(p){
     return'<tr><td><b>P'+p.id+'</b></td><td>'+p.path.map(A.lab).join(" → ")+'</td><td>'+(p.lat!=null?p.lat+" ticks":"–")+'</td><td>'+p.hops+'</td><td class="'+p.status+'">'+S[p.status]+'</td></tr>';
-   }).join("")+'</tbody></table></div>';
+   }).join("")+'</tbody></table></div>' + note;
   }}
 ];
 
@@ -993,25 +1035,33 @@ var CONTRACT='<section class="group"><h3>Data contract & Schema<span class="sub"
  'Extend newer bots by appending entries into metrics.baselines array.'].join("\n")+'</pre></section>';
 
 function render(){
- var T=trace||(sampleTrace=sampleTrace||makeDemo()),A=analyze(T);
- if(metricsSample) metrics=makeSampleMetrics(A);
- var gs=[],by={};
- PANELS.forEach(function(p){
-  if(!by[p.g]){by[p.g]=[];gs.push(p.g);}
-  by[p.g].push(p);
- });
+ try {
+  var T=trace||(sampleTrace=sampleTrace||makeDemo()),A=analyze(T);
+  if(metricsSample) metrics=makeSampleMetrics(A);
+  var gs=[],by={};
+  PANELS.forEach(function(p){
+   if(!by[p.g]){by[p.g]=[];gs.push(p.g);}
+   by[p.g].push(p);
+  });
 
- $("#an").innerHTML=
-  '<div class="an-head"><h2>Performance Analytics & Model Evaluation</h2>'+
-  '<div class="src"><span>Trace: '+(trace&&!traceDemo?"loaded trace.json":"built-in demo")+'</span>'+
-  '<span>Metrics: '+(metricsSample?"live simulation estimates":"loaded metrics.json")+'</span>'+
-  (anErr?'<span style="color:var(--bad)">'+anErr+'</span>':"")+'</div></div>'+
-  '<div class="kpis">'+KPIS.map(function(k){return'<div class="stat" data-metric="'+k[0]+'"><b>'+k[2](A)+'</b><small>'+k[1]+'</small></div>'}).join("")+'</div>'+
-  gs.map(function(g){
-   return'<section class="group"><h3>'+g+'</h3><div class="grid">'+by[g].map(function(p){
-    return'<article class="panel s'+p.s+'" data-panel="'+p.id+'"><div class="ph"><h4>'+p.t+'</h4><code>'+p.src+'</code></div>'+p.d(A,metrics)+'</article>';
-   }).join("")+'</div></section>';
-  }).join("")+CONTRACT;
+  $("#an").innerHTML=
+   '<div class="an-head"><h2>Performance Analytics & Model Evaluation</h2>'+
+   '<div class="src"><span>Trace: '+(trace&&!traceDemo?"loaded trace.json":"built-in demo")+'</span>'+
+   '<span>Metrics: '+(metricsSample?"live simulation estimates":"loaded metrics.json")+'</span>'+
+   (anErr?'<span style="color:var(--bad)">'+anErr+'</span>':"")+'</div></div>'+
+   '<div class="kpis">'+KPIS.map(function(k){return'<div class="stat" data-metric="'+k[0]+'"><b>'+k[2](A)+'</b><small>'+k[1]+'</small></div>'}).join("")+'</div>'+
+   gs.map(function(g){
+    return'<section class="group"><h3>'+g+'</h3><div class="grid">'+by[g].map(function(p){
+     return'<article class="panel s'+p.s+'" data-panel="'+p.id+'"><div class="ph"><h4>'+p.t+'</h4><code>'+p.src+'</code></div>'+p.d(A,metrics)+'</article>';
+    }).join("")+'</div></section>';
+   }).join("")+CONTRACT;
+ } catch(err) {
+  console.error("Analytics render error:", err);
+  $("#an").innerHTML=
+   '<div class="an-head"><h2>Performance Analytics & Model Evaluation</h2>'+
+   '<div class="src"><span style="color:var(--bad)">Render Error: '+err.message+'</span></div></div>'+
+   '<p style="padding:20px;color:var(--mute)">Failed to render analytics for this dataset: '+err.message+'</p>';
+ }
 }
 
 function setView(v){

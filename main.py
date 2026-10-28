@@ -1,7 +1,7 @@
 import json
 import random
 import sys
-from bots import BOT_CATALOG, get_bot_class, DijkstraBot, MinHopBot, RLcraft
+from bots import BOT_CATALOG, get_bot_class, DijkstraBot, MinHopBot, RLcraft, DATA_DIR
 from config import Edge, Node
 from network import Network
 from packet import Status
@@ -96,8 +96,48 @@ def run_simulation(net, max_steps=100, interactive=False):
     return compute_stats(net, step_count)
 
 
+def get_cli_packets():
+    """Returns N from `--packets N` (or `--packets=N`), else None."""
+    for i, arg in enumerate(sys.argv):
+        val = None
+        if arg == "--packets" and i + 1 < len(sys.argv):
+            val = sys.argv[i + 1]
+        elif arg.startswith("--packets="):
+            val = arg.split("=", 1)[1]
+        if val is not None:
+            if val.isdigit() and int(val) > 0:
+                return int(val)
+            print(f"Ignoring invalid --packets value: {val!r}")
+    return None
+
+
+def ask_packet_count(prompt, default):
+    """Packet count from --packets if given, otherwise ask interactively."""
+    cli = get_cli_packets()
+    if cli is not None:
+        print(f"{prompt} -> using --packets {cli}")
+        return cli
+    raw = input(f"{prompt} [default: {default}]: ").strip()
+    return int(raw) if raw.isdigit() and int(raw) > 0 else default
+
+
+def clear_node_data():
+    """Deletes all saved Q-tables so every run starts from a blank RLcraft."""
+    removed = 0
+    for f in DATA_DIR.glob("node_*.json"):
+        try:
+            f.unlink()
+            removed += 1
+        except OSError:
+            pass
+    RLcraft.instances.clear()
+    RLcraft.trajectory_history.clear()
+    print(f"Cleared {removed} saved node Q-table(s) from {DATA_DIR}/")
+
+
 def main():
     print("=== RL Packet Routing Simulator & Benchmark ===")
+    clear_node_data()   # must happen before any Network is built (agents load tables on creation)
 
     auto_benchmark = any(arg in sys.argv for arg in ["--benchmark", "--all", "-b"])
 
@@ -161,7 +201,7 @@ def main():
     if choice == "2":
         src = int(input(f"Enter source node (0 to {net.nodes - 1}): "))
         dst = int(input(f"Enter destination node (0 to {net.nodes - 1}): "))
-        count = int(input("Enter number of packets for flow: "))
+        count = ask_packet_count("Enter number of packets for flow", 10)
         net.generate_traffic(A=src, B=dst, packets=count)
         logger.traffic_generated(net, src, dst, packets=count)
 
@@ -173,15 +213,16 @@ def main():
         net.generate_traffic(A=src, B=dst, packets=10)
         logger.traffic_generated(net, src, dst, packets=10)
 
-        for _ in range(15):
+        extra = ask_packet_count("How many additional random packets?", 15)
+        spread = max(10, extra * 2)   # same entry-time window as option 1
+        for _ in range(extra):
             s = random.randint(0, net.nodes - 1)
             d = random.randint(0, net.nodes - 1)
             while s == d:
                 d = random.randint(0, net.nodes - 1)
-            net.generate_packet(A=s, B=d, start_time=random.randint(0, 30))
+            net.generate_packet(A=s, B=d, start_time=random.randint(0, spread))
     else:
-        pkt_count = input("How many packets to generate? [default: 10]: ").strip()
-        num_packets = int(pkt_count) if pkt_count.isdigit() else 10
+        num_packets = ask_packet_count("How many packets to generate?", 10)
 
         rand_time = input("Randomize packet entry times across simulation? (y/n) [default: y]: ").strip().lower()
         spread = max(10, num_packets * 2)
